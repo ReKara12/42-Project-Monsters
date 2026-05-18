@@ -1125,7 +1125,7 @@ async function exchangeAuthCodeViaProxy(code) {
 
   authLog("proxy-get");
   try {
-    const getUrl = `${proxyBase}/?code=${codeParam}&redirect_uri=${redirectParam}`;
+    const getUrl = `${proxyBase}?code=${codeParam}&redirect_uri=${redirectParam}`;
     const getResponse = await fetch(getUrl);
     const getText = await getResponse.text();
     authLog("proxy-response", { method: "GET", status: getResponse.status, body: getText.slice(0, 240) });
@@ -1154,7 +1154,7 @@ async function exchangeAuthCodeViaProxy(code) {
 
   authLog("proxy-post-fallback");
   try {
-    const postResponse = await fetch(`${proxyBase}/api/auth`, {
+    const postResponse = await fetch(proxyBase, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, redirect_uri: redirectUri })
