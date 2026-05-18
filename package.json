@@ -1,0 +1,22 @@
+{
+  "name": "coalittion-warriors",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node dev-server.mjs 3000",
+    "auth-proxy": "node server/auth-proxy.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ReKara12/42-Coalition-Monsters.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ReKara12/42-Coalition-Monsters/issues"
+  },
+  "homepage": "https://github.com/ReKara12/42-Coalition-Monsters#readme",
+  "description": ""
+}

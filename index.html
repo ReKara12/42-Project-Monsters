@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>42 Project Monsters</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-logo" src="assets/logo.svg" width="46" height="46" alt="" decoding="async">
+          <div>
+            <h1>Project Monsters</h1>
+            <p id="statusLine">Coalition battle console</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="soundButton" class="icon-button sound-button" type="button" title="Ses aç/kapat" aria-label="Ses aç/kapat">Ses: Açık</button>
+          <div id="profileChip" class="profile-chip hidden"></div>
+          <button id="inventoryButton" class="icon-button hidden" type="button" title="Inventory" style="width: auto; padding: 0 10px;">Çanta</button>
+          <button id="logoutButton" class="icon-button hidden" type="button" title="Logout" aria-label="Logout" style="width: auto; padding: 0 10px;">Logout</button>
+        </div>
+      </header>
+
+      <div id="inventoryModal" class="inventory-modal hidden" role="dialog" aria-modal="true" aria-labelledby="inventoryTitle">
+        <div class="inventory-panel">
+          <header class="inventory-head">
+            <div>
+              <div class="panel-kicker">Wallet / Envanter</div>
+              <h2 id="inventoryTitle">Çanta</h2>
+            </div>
+            <div class="wallet-chip">
+              <span>Wallet</span>
+              <strong id="walletBalance">0 ₳</strong>
+            </div>
+            <button id="closeInventoryButton" class="icon-button" type="button" aria-label="Çantayı kapat">X</button>
+          </header>
+          <p id="inventoryStatus" class="muted inventory-status">Savaş kazan, ₳ topla, 42 itemlarını çantana ekle.</p>
+          <div class="inventory-columns">
+            <section>
+              <div class="inventory-section-head">
+                <h3>Sahip Oldukların</h3>
+              </div>
+              <div id="inventoryGrid" class="inventory-grid"></div>
+            </section>
+            <section>
+              <div class="inventory-section-head">
+                <h3>Rozet Buffları</h3>
+              </div>
+              <div id="achievementBuffGrid" class="achievement-buff-grid"></div>
+            </section>
+            <section>
+              <div class="inventory-section-head">
+                <h3>42 Wallet Mağazası</h3>
+              </div>
+              <div id="shopGrid" class="shop-grid"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <main class="stage">
+        <section id="loginScreen" class="screen screen-login screen-main-menu">
+          <div class="main-menu-scene">
+            <nav class="main-menu-actions" aria-label="Main menu">
+              <button id="newRunButton" class="main-menu-link main-menu-auth-only menu-new-run hidden" type="button">New Run</button>
+              <button id="marketMenuButton" class="main-menu-link main-menu-auth-only menu-market hidden" type="button">Market</button>
+              <button id="leaderboardMenuButton" class="main-menu-link main-menu-auth-only menu-leaderboard hidden" type="button">Leaderboard</button>
+              <button id="settingsMenuButton" class="main-menu-link main-menu-auth-only menu-settings hidden" type="button">Settings</button>
+              <button id="logoutMenuButton" class="main-menu-link main-menu-auth-only menu-logout hidden" type="button">Logout</button>
+              <button id="login42Button" class="main-menu-link main-menu-login" type="button">Log in</button>
+            </nav>
+            <form id="localProfileForm" class="hidden">
+              <input id="intraInput" maxlength="20" autocomplete="off" value="seguler">
+              <select id="coalitionInput">
+                <option value="Slytherin">Slytherin</option>
+                <option value="Gryffindor">Gryffindor</option>
+                <option value="Ravenclaw">Ravenclaw</option>
+                <option value="Hufflepuff">Hufflepuff</option>
+              </select>
+            </form>
+            <div id="menuWhiteWipe" class="menu-white-wipe hidden" aria-hidden="true">
+              <span class="menu-white-core"></span>
+            </div>
+          </div>
+        </section>
+
+        <section id="leaderboardScreen" class="screen menu-subscreen hidden">
+          <div class="menu-page-card">
+            <div class="menu-page-head">
+              <h2>Leaderboard</h2>
+              <button class="main-menu-link menu-back-button" type="button" data-menu-back>Back</button>
+            </div>
+            <div id="menuLeaderboard" class="leader-list"></div>
+          </div>
+        </section>
+
+        <section id="settingsScreen" class="screen menu-subscreen hidden">
+          <div class="menu-page-card menu-page-card-small">
+            <div class="menu-page-head">
+              <h2>Settings</h2>
+              <button class="main-menu-link menu-back-button" type="button" data-menu-back>Back</button>
+            </div>
+            <button id="settingsSoundButton" class="main-menu-link menu-setting-button" type="button">Ses: Açık</button>
+          </div>
+        </section>
+
+        <section id="marketScreen" class="screen menu-subscreen hidden">
+          <div class="market-page-panel">
+            <div class="menu-page-head">
+              <div>
+                <h2>Market</h2>
+                <p id="marketStatus" class="muted">₳ ile eşya al.</p>
+              </div>
+              <div class="wallet-chip">
+                <span>Wallet</span>
+                <strong id="marketWalletBalance">0 ₳</strong>
+              </div>
+              <button class="main-menu-link menu-back-button" type="button" data-menu-back>Back</button>
+            </div>
+            <div id="marketShopGrid" class="shop-grid"></div>
+          </div>
+        </section>
+
+        <section id="frontScreen" class="screen hidden">
+          <div class="front-layout">
+            <div class="front-map">
+              <div class="section-head">
+                <div>
+                  <div id="frontKicker" class="panel-kicker">Karşılaşma</div>
+                  <h2 id="frontTitle">Canavarını seç</h2>
+                  <p id="frontHint" class="muted">Rakibi gördükten sonra onaylı proje canavarlarından birini seç.</p>
+                </div>
+                <button id="refreshBoardButton" class="secondary-button" type="button">Refresh</button>
+              </div>
+              <button id="enterVillageButton" class="primary-button hidden" type="button">Köyü Gez</button>
+              <div id="encounterPreview" class="encounter-preview hidden"></div>
+              <div id="frontGrid" class="front-grid"></div>
+            </div>
+            <aside class="leader-panel">
+              <h3>Coalition Board</h3>
+              <div id="frontLeaderboard" class="leader-list"></div>
+              <h3>Recent Battles</h3>
+              <div id="eventFeed" class="event-feed"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="villageScreen" class="screen hidden">
+          <header class="village-header">
+            <div>
+              <h2 id="villageName">Milestone 0 Village</h2>
+              <p id="villageSubtitle" class="muted">M0 Köyü — libft cephesi</p>
+            </div>
+            <button id="exitVillageButton" class="secondary-button" type="button">Haritayı Yenile</button>
+          </header>
+          <canvas id="villageCanvas" width="640" height="448"></canvas>
+          <p class="muted village-hint">WASD / ok tuşlarıyla gez. Kendi köyünün canavarları rastgele karşına çıkar; rakibi görünce kendi canavarını seçersin.</p>
+        </section>
+
+        <section id="gameScreen" class="screen game-screen hidden">
+          <canvas id="gameCanvas" width="1280" height="720" aria-label="Savaş alanı"></canvas>
+          <div class="hud">
+            <div>
+              <span class="hud-label">Senin projen</span>
+              <strong id="hudFront">libft</strong>
+            </div>
+            <div>
+              <span class="hud-label">Senin HP</span>
+              <strong id="hudHp">100</strong>
+            </div>
+            <div>
+              <span class="hud-label">Rakip</span>
+              <strong id="hudEnemyName">ft_printf</strong>
+            </div>
+            <div>
+              <span class="hud-label">Rakip HP</span>
+              <strong id="hudEnemyHp">100</strong>
+            </div>
+            <div>
+              <span class="hud-label">Skor</span>
+              <strong id="hudScore">0</strong>
+            </div>
+            <button id="abortRunButton" class="danger-button" type="button">Çık</button>
+          </div>
+          <div id="battlePanel" class="battle-panel">
+            <div>
+              <span id="attackName" class="panel-kicker">Saldırı</span>
+              <strong id="movePrompt">Hamleni seç</strong>
+            </div>
+            <div id="moveButtons" class="move-buttons"></div>
+          </div>
+        </section>
+
+        <section id="resultScreen" class="screen hidden">
+            <div class="result-layout">
+              <div class="result-card">
+              <div class="panel-kicker">Karşılaşma bitti</div>
+              <h2 id="resultTitle">Proje kazandı</h2>
+              <div class="result-stats">
+                <div>
+                  <span>Coalition +</span>
+                  <strong id="resultScore">0</strong>
+                </div>
+                <div>
+                  <span>Hamle</span>
+                  <strong id="resultKills">0</strong>
+                </div>
+                <div>
+                  <span>Sonuç</span>
+                  <strong id="resultTime">0s</strong>
+                </div>
+                <div>
+                  <span>Coalition</span>
+                  <strong id="resultCoalition">-</strong>
+                </div>
+              </div>
+              <div class="result-actions">
+                <button id="playAgainButton" class="primary-button" type="button">Tekrar Savaş</button>
+                <button id="mapButton" class="secondary-button" type="button">Köye Dön</button>
+              </div>
+            </div>
+            <aside class="leader-panel">
+              <h3>Coalition Board</h3>
+              <div id="resultLeaderboard" class="leader-list"></div>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="content.js"></script>
+    <script src="maps.js"></script>
+    <script src="dungeon_generator.js"></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
