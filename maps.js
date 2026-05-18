@@ -305,7 +305,7 @@ window.FRONT_MAPS.getVillageName = function getOverworldVillageName(milestone) {
  * ============================================================
  */
 /** Zemin PNG’si haritada kaç hücre kaplar (1x1 yerine 10x10). */
-const GROUND_TILE_CHUNK = 5;
+const GROUND_TILE_CHUNK = 2;
 
 const TILE_ASSETS = {
   ground: {
