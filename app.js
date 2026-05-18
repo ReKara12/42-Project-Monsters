@@ -150,6 +150,310 @@ const COALITION_ALIASES = {
   "The Order": "Gryffindor"
 };
 
+// =====================================================================
+// BattleEngine — tactical move resolution (heal, buff, debuff, stun, DoT…)
+// =====================================================================
+const BattleEngine = (() => {
+  const DEFAULT_ACCURACY = 100;
+  const LIFESTEAL_RATIO = 0.5;
+  const RECOIL_RATIO = 0.25;
+  const STAT_LABELS = { hp: "HP", power: "Güç", defense: "Defans", accuracy: "İsabet", speed: "Hız" };
+  const MOVE_TAGS = { damage: "⚔", heal: "♥", buff: "▲", debuff: "▼", stun: "⚡", dot: "☣", lifesteal: "◈", recoil: "↩" };
+
+  function normalizeMove(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const legacyName = String(raw.attack || "").trim();
+    const name = String(raw.name || legacyName || "").trim();
+    if (!name) return null;
+    if (legacyName && !raw.name && !raw.type) {
+      let basePower = Number(raw.damage);
+      if (!Number.isFinite(basePower) || basePower <= 0) basePower = 18;
+      return {
+        name: legacyName,
+        type: "damage",
+        basePower,
+        accuracy: DEFAULT_ACCURACY,
+        target: "enemy",
+        description: ""
+      };
+    }
+    const type = String(raw.type || "damage").trim();
+    let basePower = raw.basePower ?? raw.damage;
+    if (basePower != null) {
+      basePower = Number(basePower);
+      if (!Number.isFinite(basePower)) basePower = undefined;
+    }
+    const move = {
+      name,
+      type,
+      accuracy: Number.isFinite(Number(raw.accuracy)) ? Math.max(0, Math.min(100, Number(raw.accuracy))) : DEFAULT_ACCURACY,
+      target: raw.target === "self" ? "self" : "enemy",
+      description: String(raw.description || "").trim()
+    };
+    if (basePower != null) move.basePower = Math.max(0, Math.round(basePower));
+    if (raw.buffSelf) move.buffSelf = true;
+    if (raw.effect && typeof raw.effect === "object") {
+      move.effect = {
+        stat: raw.effect.stat,
+        modifier: Number(raw.effect.modifier),
+        duration: Number.isFinite(Number(raw.effect.duration)) ? Math.max(1, Math.round(Number(raw.effect.duration))) : 3,
+        chance: Number.isFinite(Number(raw.effect.chance)) ? Math.max(0, Math.min(1, Number(raw.effect.chance))) : 1
+      };
+    }
+    return move;
+  }
+
+  function initFighterCombatState(fighter) {
+    if (!fighter) return fighter;
+    fighter.defense = Number.isFinite(Number(fighter.defense)) ? Number(fighter.defense) : 10;
+    fighter.speed = Number.isFinite(Number(fighter.speed)) ? Number(fighter.speed) : 4;
+    fighter.accuracy = Number.isFinite(Number(fighter.accuracy)) ? Number(fighter.accuracy) : DEFAULT_ACCURACY;
+    fighter.statusEffects = fighter.statusEffects || [];
+    fighter.dots = fighter.dots || [];
+    fighter.stunned = Math.max(0, Math.round(Number(fighter.stunned) || 0));
+    return fighter;
+  }
+
+  function cloneMoves(moves) {
+    return (moves || []).map((move) => {
+      const copy = { ...move };
+      if (move.effect) copy.effect = { ...move.effect };
+      return copy;
+    });
+  }
+
+  function getEffectiveStat(fighter, stat) {
+    let base;
+    switch (stat) {
+      case "power":
+        base = Number(fighter.power) || 1;
+        break;
+      case "defense":
+        base = Number(fighter.defense) || 10;
+        break;
+      case "accuracy":
+        base = Number(fighter.accuracy) || DEFAULT_ACCURACY;
+        break;
+      case "speed":
+        base = Number(fighter.speed) || 4;
+        break;
+      default:
+        return 0;
+    }
+    let mult = 1;
+    for (const eff of fighter.statusEffects || []) {
+      if (eff.stat === stat && Number.isFinite(eff.modifier)) mult *= eff.modifier;
+    }
+    if (stat === "accuracy") return Math.min(100, Math.max(5, Math.round(base * mult)));
+    return Math.max(1, Math.round(base * mult));
+  }
+
+  function rollAccuracy(attacker, defender, move) {
+    const moveAcc = Math.min(100, Math.max(0, Number(move.accuracy ?? DEFAULT_ACCURACY)));
+    const atkAcc = getEffectiveStat(attacker, "accuracy");
+    const defAcc = getEffectiveStat(defender, "accuracy");
+    const hitRate = moveAcc * (atkAcc / DEFAULT_ACCURACY) * (DEFAULT_ACCURACY / Math.max(defAcc, 1));
+    const finalRate = Math.min(100, Math.max(5, hitRate));
+    return Math.random() * 100 < finalRate;
+  }
+
+  function procChance(effect) {
+    if (!effect) return true;
+    const chance = effect.chance;
+    if (chance == null || chance >= 1) return true;
+    return Math.random() < chance;
+  }
+
+  function calcDamage(attacker, defender, move) {
+    const basePower = Math.max(1, Number(move.basePower) || 18);
+    const atkPower = getEffectiveStat(attacker, "power") + Math.max(0, Number(attacker.damageBonus) || 0);
+    const def = Math.max(1, getEffectiveStat(defender, "defense"));
+    return Math.max(1, Math.round((basePower * atkPower) / def));
+  }
+
+  function applyStatus(fighter, effect) {
+    if (!effect?.stat || !Number.isFinite(effect.modifier)) return false;
+    fighter.statusEffects.push({
+      stat: effect.stat,
+      modifier: effect.modifier,
+      duration: Math.max(1, Number(effect.duration) || 3)
+    });
+    return true;
+  }
+
+  function applyDot(fighter, effect) {
+    const perTurn = Math.max(1, Math.round(Number(effect?.modifier) || 8));
+    const remaining = Math.max(1, Math.round(Number(effect?.duration) || 3));
+    fighter.dots.push({ perTurn, remaining });
+  }
+
+  function describeStatEffect(stat, modifier) {
+    const label = STAT_LABELS[stat] || stat;
+    const pct = Math.round(Math.abs(modifier - 1) * 100);
+    return label + (modifier >= 1 ? " %" + pct + " arttı" : " %" + pct + " düştü");
+  }
+
+  function resolveEffectTarget(attacker, defender, move) {
+    if (move.buffSelf || move.target === "self") return attacker;
+    return defender;
+  }
+
+  function processDotPhase(fighter, displayName) {
+    const logs = [];
+    let total = 0;
+    const nextDots = [];
+    for (const dot of fighter.dots || []) {
+      if (dot.remaining > 0) {
+        total += dot.perTurn;
+        dot.remaining -= 1;
+        if (dot.remaining > 0) nextDots.push(dot);
+      }
+    }
+    fighter.dots = nextDots;
+    if (total > 0) {
+      fighter.hp = Math.max(0, fighter.hp - total);
+      logs.push(displayName + " DoT hasarı aldı: " + total + "!");
+    }
+    return logs;
+  }
+
+  function tickFighterEndTurn(fighter) {
+    fighter.statusEffects = (fighter.statusEffects || [])
+      .map((eff) => ({ ...eff, duration: eff.duration - 1 }))
+      .filter((eff) => eff.duration > 0);
+  }
+
+  function tryConsumeStun(fighter, displayName) {
+    if ((fighter.stunned || 0) > 0) {
+      fighter.stunned -= 1;
+      return displayName + " sersemledi ve hamlesini yapamadı!";
+    }
+    return null;
+  }
+
+  function executeMove(attacker, defender, move) {
+    const logs = [];
+    const aName = stripLevelSuffix(attacker.name);
+    const dName = stripLevelSuffix(defender.name);
+    const moveName = move.name || move.attack || "Hamle";
+    const type = move.type || "damage";
+
+    if (!rollAccuracy(attacker, defender, move)) {
+      logs.push(aName + " " + moveName + " kullandı... Isabet etmedi!");
+      return { logs, hit: false, damage: 0, healed: 0 };
+    }
+
+    let damage = 0;
+    let healed = 0;
+
+    if (type === "heal") {
+      const amount = Math.max(1, Math.round(Number(move.basePower) || 20));
+      const before = attacker.hp;
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + amount);
+      healed = attacker.hp - before;
+      logs.push(aName + " " + moveName + " kullandı! " + aName + " " + healed + " HP iyileşti!");
+      return { logs, hit: true, damage: 0, healed };
+    }
+
+    if (type === "buff" || type === "debuff") {
+      const target = resolveEffectTarget(attacker, defender, move);
+      const tName = target === attacker ? aName : dName;
+      if (procChance(move.effect) && applyStatus(target, move.effect)) {
+        logs.push(aName + " " + moveName + " kullandı! " + tName + " — " + describeStatEffect(move.effect.stat, move.effect.modifier) + " (" + (move.effect.duration || 3) + " tur).");
+      } else {
+        logs.push(aName + " " + moveName + " kullandı... Efekt tutmadı!");
+      }
+      return { logs, hit: true, damage: 0, healed: 0 };
+    }
+
+    if (type === "stun") {
+      if (procChance(move.effect)) {
+        const turns = Math.max(1, Number(move.effect?.duration) || 1);
+        defender.stunned = Math.max(defender.stunned || 0, turns);
+        logs.push(aName + " " + moveName + " kullandı! " + dName + " sersemledi!");
+      } else {
+        logs.push(aName + " " + moveName + " kullandı... Sersemletme başarısız!");
+      }
+      return { logs, hit: true, damage: 0, healed: 0 };
+    }
+
+    if (type === "dot") {
+      if (procChance(move.effect)) {
+        applyDot(defender, move.effect);
+        const per = move.effect?.modifier || 8;
+        const dur = move.effect?.duration || 3;
+        logs.push(aName + " " + moveName + " kullandı! " + dName + " virüslendi (" + per + " hasar/tur, " + dur + " tur).");
+      } else {
+        logs.push(aName + " " + moveName + " kullandı... DoT uygulanamadı!");
+      }
+      return { logs, hit: true, damage: 0, healed: 0 };
+    }
+
+    const dmgTarget = move.target === "self" ? attacker : defender;
+    const dmgName = dmgTarget === attacker ? aName : dName;
+    damage = calcDamage(attacker, defender, move);
+    dmgTarget.hp = Math.max(0, dmgTarget.hp - damage);
+    logs.push(aName + " " + moveName + " kullandı! " + dmgName + " " + damage + " hasar aldı!");
+
+    if (type === "lifesteal" && damage > 0) {
+      const steal = Math.round(damage * LIFESTEAL_RATIO);
+      const before = attacker.hp;
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + steal);
+      healed = attacker.hp - before;
+      logs.push(aName + " " + steal + " HP çaldı!");
+    }
+
+    if (type === "recoil" && damage > 0) {
+      const recoil = Math.max(1, Math.round(damage * RECOIL_RATIO));
+      attacker.hp = Math.max(0, attacker.hp - recoil);
+      logs.push(aName + " " + recoil + " geri tepme hasarı aldı!");
+    }
+
+    if (move.effect?.stat && procChance(move.effect)) {
+      const statTarget = move.buffSelf ? attacker : defender;
+      const statName = statTarget === attacker ? aName : dName;
+      if (applyStatus(statTarget, move.effect)) {
+        logs.push(statName + " — " + describeStatEffect(move.effect.stat, move.effect.modifier) + " (" + (move.effect.duration || 3) + " tur).");
+      }
+    }
+
+    return { logs, hit: true, damage, healed };
+  }
+
+  function formatMoveLabel(move) {
+    const n = move.name || move.attack || "?";
+    const tag = MOVE_TAGS[move.type] || "⚔";
+    const bp = move.basePower ?? move.damage;
+    return bp != null ? n + " " + tag + bp : n + " " + tag;
+  }
+
+  function appendBattleLog(battle, lines) {
+    const text = Array.isArray(lines) ? lines.filter(Boolean).join(" ") : String(lines || "");
+    battle.log = text;
+    if (typeof appendBattleUiLog === "function") appendBattleUiLog(text);
+  }
+
+  return {
+    DEFAULT_ACCURACY,
+    normalizeMove,
+    cloneMoves,
+    initFighterCombatState,
+    getEffectiveStat,
+    executeMove,
+    processDotPhase,
+    tickFighterEndTurn,
+    tryConsumeStun,
+    formatMoveLabel,
+    appendBattleLog
+  };
+})();
+
+function appendBattleUiLog(message) {
+  if (!message) return;
+  const battle = app.battle;
+  if (battle) battle.log = message;
+}
+
 const MONSTERS = buildMonsterCatalog(Array.isArray(window.MONSTER_DATA) ? window.MONSTER_DATA : []);
 const TRAINER_IMAGES = preloadTrainerImages();
 const BATTLE_BACKGROUND_IMAGE = preloadBattleBackground();
@@ -290,15 +594,13 @@ function buildMonsterCatalog(raw) {
     const movesRaw = Array.isArray(m.moves) ? m.moves : Array.isArray(m.questions) ? m.questions : [];
     const moves = [];
     for (const q of movesRaw) {
-      if (!q || typeof q !== "object") continue;
-      const attack = String(q.attack || "").trim();
-      if (!attack) continue;
-      let damage = Number(q.damage);
-      if (!Number.isFinite(damage) || damage <= 0) damage = 18;
-      moves.push({ attack, damage });
+      const move = BattleEngine.normalizeMove(q);
+      if (move) moves.push(move);
     }
     if (!moves.length) continue;
     const powerVal = Number(m.power);
+    const defenseVal = Number(m.defense);
+    const speedVal = Number(m.speed);
     const milestoneVal = Number(m.milestone);
     out.push({
       id,
@@ -308,6 +610,8 @@ function buildMonsterCatalog(raw) {
       color: typeof m.color === "string" && m.color.startsWith("#") ? m.color : "#45c7ff",
       hp: Math.round(hp),
       power: Number.isFinite(powerVal) ? Math.max(0, Math.round(powerVal)) : 2,
+      defense: Number.isFinite(defenseVal) ? Math.max(1, Math.round(defenseVal)) : 10,
+      speed: Number.isFinite(speedVal) ? Math.max(1, Math.round(speedVal)) : 4,
       milestone: Number.isFinite(milestoneVal) ? Math.max(0, Math.round(milestoneVal)) : 0,
       track: String(m.track || "current").trim() || "current",
       slugs: Array.isArray(m.slugs) ? m.slugs.map((slug) => String(slug).trim()).filter(Boolean) : [],
@@ -2834,7 +3138,28 @@ function cloneFighter(monster, isPlayer) {
     const stat = ensureProjectStat(monster, maxHp);
     hp = Number.isFinite(Number(stat.hp)) ? Math.max(0, Math.min(Number(stat.hp), maxHp)) : maxHp;
   }
-  return { id: monster.id, name: level > 0 ? displayName + " (Lv" + (level + 1) + ")" : displayName, codename: monster.name, project: monster.project, role: monster.role, color: monster.color, hp, maxHp, power: monster.power + (level * 2) + powerBonus, damageBonus, milestone: monster.milestone, track: monster.track, moves: shuffle(monster.moves) };
+  const fighter = {
+    id: monster.id,
+    name: level > 0 ? displayName + " (Lv" + (level + 1) + ")" : displayName,
+    codename: monster.name,
+    project: monster.project,
+    role: monster.role,
+    color: monster.color,
+    hp,
+    maxHp,
+    power: monster.power + level * 2 + powerBonus,
+    defense: monster.defense ?? 10,
+    speed: monster.speed ?? 4,
+    accuracy: BattleEngine.DEFAULT_ACCURACY,
+    damageBonus,
+    milestone: monster.milestone,
+    track: monster.track,
+    moves: shuffle(BattleEngine.cloneMoves(monster.moves)),
+    statusEffects: [],
+    dots: [],
+    stunned: 0
+  };
+  return BattleEngine.initFighterCombatState(fighter);
 }
 
 function ensureProjectStat(monster, maxHp = computeMonsterMaxHp(monster, app.profile)) {
@@ -2920,11 +3245,14 @@ function renderBattleControls(mode = "actions") {
     return;
   }
   if (mode === "fight") {
-    const passiveDamage = Math.max(0, Number(battle.player.power) || 0) + Math.max(0, Number(battle.player.damageBonus) || 0);
     els.attackName.textContent = "Fight";
-    els.movePrompt.textContent = "Saldırı seç";
+    els.movePrompt.textContent = "Yetenek seç";
     els.moveButtons.className = "move-buttons battle-submenu-grid";
-    els.moveButtons.innerHTML = battle.player.moves.map((move, index) => '<button class="battle-sub-button" type="button" data-move-index="' + index + '" ' + disabled + '>' + escapeHtml(move.attack) + '<span class="move-damage">' + move.damage + (passiveDamage ? '+' + passiveDamage : '') + '</span></button>').join("") + '<button class="battle-sub-button battle-back" type="button" data-battle-back>Geri</button>';
+    els.moveButtons.innerHTML = battle.player.moves.map((move, index) => {
+      const label = BattleEngine.formatMoveLabel(move);
+      const hint = move.type && move.type !== "damage" ? move.type : "";
+      return '<button class="battle-sub-button" type="button" data-move-index="' + index + '" ' + disabled + ' title="' + escapeHtml(move.description || "") + '">' + escapeHtml(label) + (hint ? '<span class="move-damage">' + escapeHtml(hint) + '</span>' : "") + "</button>";
+    }).join("") + '<button class="battle-sub-button battle-back" type="button" data-battle-back>Geri</button>';
     return;
   }
   if (mode === "bag") {
@@ -2973,23 +3301,61 @@ function useMove(index) {
   if (!move) return;
   battle.processingTurn = true;
   renderBattleControls(battle.menuMode || "fight");
-  playSound("attack");
-  const attackBonus = Math.max(0, Number(battle.player.power) || 0) + Math.max(0, Number(battle.player.damageBonus) || 0);
-  const totalDamage = Math.max(1, move.damage + attackBonus);
-  battle.enemy.hp = Math.max(0, battle.enemy.hp - totalDamage);
-  battle.score += totalDamage * 10;
-  battle.hits += 1;
-  battle.log = move.attack + " " + totalDamage + " hasar verdi";
-  battle.enemyFlashUntil = performance.now() + 280;
-  pulseHudHp("enemy");
-  triggerScreenShake("light");
+  BattleEngine.initFighterCombatState(battle.player);
+  BattleEngine.initFighterCombatState(battle.enemy);
+
+  const playerName = stripLevelSuffix(battle.player.name);
+  const logLines = BattleEngine.processDotPhase(battle.player, playerName);
+  const stunMsg = BattleEngine.tryConsumeStun(battle.player, playerName);
+  if (stunMsg) {
+    logLines.push(stunMsg);
+    BattleEngine.appendBattleLog(battle, logLines);
+    BattleEngine.tickFighterEndTurn(battle.player);
+    updateBattleHud();
+    drawBattle();
+    if (battle.player.hp <= 0) {
+      battle.processingTurn = false;
+      saveFighterProjectHp(battle.player);
+      void finishBattle("loss");
+      return;
+    }
+    queueEnemyTurn(battle);
+    return;
+  }
+
+  const result = BattleEngine.executeMove(battle.player, battle.enemy, move);
+  logLines.push(...result.logs);
+  BattleEngine.appendBattleLog(battle, logLines);
+  BattleEngine.tickFighterEndTurn(battle.player);
+
+  if (result.damage > 0) {
+    playSound("attack");
+    battle.score += result.damage * 10;
+    battle.hits += 1;
+    battle.enemyFlashUntil = performance.now() + 280;
+    pulseHudHp("enemy");
+    triggerScreenShake("light");
+  } else if (result.healed > 0) {
+    playSound("win");
+    pulseHudHp("player");
+  } else {
+    playSound(result.hit ? "ui" : "hit");
+  }
+
   updateBattleHud();
   drawBattle();
-  runBattleFxLoop(battle, battle.enemyFlashUntil);
+  if (battle.enemyFlashUntil) runBattleFxLoop(battle, battle.enemyFlashUntil);
+
   if (battle.enemy.hp <= 0) {
     battle.processingTurn = false;
     saveFighterProjectHp(battle.player);
     void finishBattle("win");
+    return;
+  }
+  if (battle.player.hp <= 0) {
+    battle.processingTurn = false;
+    saveFighterProjectHp(battle.player);
+    void finishBattle("loss");
     return;
   }
   queueEnemyTurn(battle);
@@ -2999,23 +3365,55 @@ function queueEnemyTurn(battle) {
   if (!battle || battle.outcome !== "active") return;
   const turnTimer = window.setTimeout(() => {
     if (app.battle !== battle || battle.outcome !== "active") return;
+    BattleEngine.initFighterCombatState(battle.player);
+    BattleEngine.initFighterCombatState(battle.enemy);
+
+    const enemyName = stripLevelSuffix(battle.enemy.name);
+    const logLines = BattleEngine.processDotPhase(battle.enemy, enemyName);
+    const stunMsg = BattleEngine.tryConsumeStun(battle.enemy, enemyName);
+    if (stunMsg) {
+      logLines.push(stunMsg);
+      BattleEngine.appendBattleLog(battle, logLines);
+      BattleEngine.tickFighterEndTurn(battle.enemy);
+      updateBattleHud();
+      drawBattle();
+      battle.processingTurn = false;
+      renderBattleControls("actions");
+      return;
+    }
+
     const enemyMoves = battle.enemy.moves;
-    const enemyMove = enemyMoves.length > 0 ? enemyMoves[Math.floor(Math.random() * enemyMoves.length)] : { attack: "Counter", damage: 18 };
-    const counter = Math.ceil(enemyMove.damage * 0.72) + battle.enemy.power;
-    battle.player.hp = Math.max(0, battle.player.hp - counter);
+    const enemyMove = enemyMoves.length > 0
+      ? enemyMoves[Math.floor(Math.random() * enemyMoves.length)]
+      : { name: "Counter", type: "damage", basePower: 18, accuracy: 100, target: "enemy" };
+    const result = BattleEngine.executeMove(battle.enemy, battle.player, enemyMove);
+    logLines.push(...result.logs);
+    BattleEngine.appendBattleLog(battle, logLines);
+    BattleEngine.tickFighterEndTurn(battle.enemy);
     saveFighterProjectHp(battle.player);
-    battle.log = battle.enemy.name + ", " + enemyMove.attack + " kullandı: " + counter + " hasar";
-    playSound("hit");
-    battle.playerFlashUntil = performance.now() + 320;
-    pulseHudHp("player");
-    triggerScreenShake("heavy");
+
+    if (result.damage > 0) {
+      playSound("hit");
+      battle.playerFlashUntil = performance.now() + 320;
+      pulseHudHp("player");
+      triggerScreenShake("heavy");
+    } else if (result.healed > 0) {
+      playSound("ui");
+    } else {
+      playSound(result.hit ? "ui" : "hit");
+    }
+
     if (battle.player.hp <= 0) {
-      updateBattleHud(); drawBattle(); runBattleFxLoop(battle, battle.playerFlashUntil);
+      updateBattleHud();
+      drawBattle();
+      runBattleFxLoop(battle, battle.playerFlashUntil);
       battle.processingTurn = false;
       void finishBattle("loss");
       return;
     }
-    updateBattleHud(); drawBattle(); runBattleFxLoop(battle, battle.playerFlashUntil);
+    updateBattleHud();
+    drawBattle();
+    if (battle.playerFlashUntil) runBattleFxLoop(battle, battle.playerFlashUntil);
     battle.processingTurn = false;
     renderBattleControls("actions");
   }, 620);

@@ -1,3 +1,28 @@
+// =====================================================================
+// MONSTER_DATA — refactored to support tactical RPG mechanics.
+//
+// Move shape (conceptual interface):
+//   {
+//     name: string,                       // canavar yeteneğinin adı
+//     type: 'damage' | 'heal' | 'buff' | 'debuff' |
+//           'stun'   | 'lifesteal' | 'recoil' | 'dot',
+//     basePower?: number,                 // ham hasar/iyileşme tabanı
+//     accuracy?: number,                  // 0-100 isabet (varsayılan 100)
+//     target: 'self' | 'enemy',
+//     effect?: {
+//       stat?: 'hp' | 'power' | 'defense' | 'accuracy' | 'speed',
+//       modifier?: number,                // buff için 1.5, debuff için 0.5 vb.
+//                                         //    DoT için tur başı hasar (sayı)
+//       duration?: number,                // efektin kaç tur süreceği
+//       chance?: number                   // 0-1 arası tetiklenme ihtimali
+//     },
+//     description: string
+//   }
+//
+// Geriye dönük uyumluluk: buildMonsterCatalog hâlâ eski
+// { attack, damage } formatını da kabul ediyor (otomatik damage'a çevrilir).
+// =====================================================================
+
 window.MONSTER_DATA = [
   {
     id: "libcub",
@@ -6,14 +31,20 @@ window.MONSTER_DATA = [
     milestone: 0,
     role: "Tank starter",
     color: "#45c7ff",
-    hp: 120,
-    power: 2,
+    hp: 120, power: 2, defense: 13, speed: 2,
     moves: [
-      { attack: "Null Guard", damage: 10 },
-      { attack: "Memory Allocation", damage: 20 },
-      { attack: "Bzero Blast", damage: 20 },
-      { attack: "Calloc Catalyst", damage: 25 },
-      { attack: "Length Lash", damage: 15 }
+      { name: "Null Guard", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.5, duration: 3 },
+        description: "NULL kontrolü sıkılaştırır — 3 tur boyunca defansı %50 artar." },
+      { name: "Memory Allocation", type: "heal", basePower: 35, accuracy: 100, target: "self",
+        description: "Taze malloc ile kendine 35 HP iyileşir." },
+      { name: "Bzero Blast", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 0.7, duration: 3, chance: 1.0 },
+        description: "Hafıza sıfırlar — hasar verir ve düşmanın gücünü %30 düşürür." },
+      { name: "Calloc Catalyst", type: "damage", basePower: 26, accuracy: 90, target: "enemy",
+        description: "Temizlenmiş bellek dalgasıyla güçlü darbe." },
+      { name: "Length Lash", type: "damage", basePower: 16, accuracy: 100, target: "enemy",
+        description: "Strlen tabanlı hızlı, isabetli vuruş." }
     ]
   },
   {
@@ -23,14 +54,20 @@ window.MONSTER_DATA = [
     milestone: 1,
     role: "Format mage",
     color: "#ffbd4a",
-    hp: 90,
-    power: 3,
+    hp: 90, power: 5, defense: 9, speed: 4,
     moves: [
-      { attack: "Format Flame", damage: 20 },
-      { attack: "Variadic Void", damage: 25 },
-      { attack: "Hexadecimal Haze", damage: 20 },
-      { attack: "Pointer Pierce", damage: 25 },
-      { attack: "Character Chop", damage: 15 }
+      { name: "Format Flame", type: "damage", basePower: 28, accuracy: 90, target: "enemy",
+        description: "%s alev kusar — yüksek hasar." },
+      { name: "Variadic Void", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Düzgün biçimsiz format — düşmanın isabetini %25 düşürür." },
+      { name: "Hexadecimal Haze", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 8, duration: 3 },
+        description: "0x hex sis — 3 tur boyunca tur başı 8 hasar." },
+      { name: "Pointer Pierce", type: "damage", basePower: 32, accuracy: 80, target: "enemy",
+        description: "%p ile zırh deler ama az isabetli." },
+      { name: "Character Chop", type: "damage", basePower: 16, accuracy: 100, target: "enemy",
+        description: "%c ile hızlı, isabetli darbe." }
     ]
   },
   {
@@ -40,14 +77,21 @@ window.MONSTER_DATA = [
     milestone: 1,
     role: "Buffer serpent",
     color: "#78d66f",
-    hp: 112,
-    power: 2,
+    hp: 112, power: 3, defense: 11, speed: 4,
     moves: [
-      { attack: "Buffer Bite", damage: 20 },
-      { attack: "Newline Strike", damage: 25 },
-      { attack: "Static Shield", damage: 15 },
-      { attack: "EOF Evade", damage: 15 },
-      { attack: "Free Fangs", damage: 20 }
+      { name: "Buffer Bite", type: "lifesteal", basePower: 22, accuracy: 95, target: "enemy",
+        description: "Buffer ısırığı — hasarın %50'sini can olarak çalar." },
+      { name: "Newline Strike", type: "damage", basePower: 24, accuracy: 95, target: "enemy",
+        description: "\\n tetikli keskin vuruş." },
+      { name: "Static Shield", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.4, duration: 3 },
+        description: "Static değişken kalkanı — 3 tur defans %40 artar." },
+      { name: "EOF Evade", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "accuracy", modifier: 1.3, duration: 4 },
+        description: "EOF kaçışı — 4 tur isabet %30 artar." },
+      { name: "Free Fangs", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Boşa çıkarılmış bellekle ısırır, düşman gücünü %20 düşürür." }
     ]
   },
   {
@@ -57,14 +101,20 @@ window.MONSTER_DATA = [
     milestone: 1,
     role: "Stack assassin",
     color: "#ff5e57",
-    hp: 104,
-    power: 4,
+    hp: 104, power: 5, defense: 10, speed: 5,
     moves: [
-      { attack: "Swap Strike", damage: 15 },
-      { attack: "Push Pounce", damage: 20 },
-      { attack: "Double Rotate", damage: 25 },
-      { attack: "Reverse Rage", damage: 20 },
-      { attack: "Pivot Point", damage: 25 }
+      { name: "Swap Strike", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.7, duration: 3, chance: 1.0 },
+        description: "Swap darbesi — hasar verir, düşman defansını %30 düşürür." },
+      { name: "Push Pounce", type: "damage", basePower: 22, accuracy: 95, target: "enemy",
+        description: "Stack üstüne sıçrayarak vurur." },
+      { name: "Double Rotate", type: "damage", basePower: 38, accuracy: 85, target: "enemy",
+        description: "rr/rrr kombinasyonu — iki yığını birden döndürerek devasa hasar." },
+      { name: "Reverse Rage", type: "damage", basePower: 26, accuracy: 90, target: "enemy",
+        effect: { stat: "power", modifier: 1.2, duration: 2, chance: 1.0 },
+        description: "Ters rotasyon — hasar verir ve 2 tur kendi gücünü %20 artırır.", buffSelf: true },
+      { name: "Pivot Point", type: "damage", basePower: 28, accuracy: 85, target: "enemy",
+        description: "Medyan pivota göre kesin darbe." }
     ]
   },
   {
@@ -75,14 +125,22 @@ window.MONSTER_DATA = [
     milestone: 2,
     role: "System tank",
     color: "#8fa3ad",
-    hp: 140,
-    power: 2,
+    hp: 140, power: 2, defense: 14, speed: 2,
     moves: [
-      { attack: "Sudo Shield", damage: 10 },
-      { attack: "Password Purge", damage: 15 },
-      { attack: "Port Protect", damage: 20 },
-      { attack: "Firewall Fort", damage: 20 },
-      { attack: "Cron Crush", damage: 25 }
+      { name: "Sudo Shield", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 2.0, duration: 3 },
+        description: "sudo elevasyonu — 3 tur boyunca defansı 2 katına çıkar." },
+      { name: "Password Purge", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Parola politikasıyla düşmanın isabetini %25 düşürür." },
+      { name: "Port Protect", type: "heal", basePower: 28, accuracy: 100, target: "self",
+        description: "UFW kuralı uygular — kendine 28 HP iyileşir." },
+      { name: "Firewall Fort", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.5, duration: 2 },
+        description: "Kalıcı duvar — 2 tur defans %50 artar." },
+      { name: "Cron Crush", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 14, duration: 3 },
+        description: "cron job kurar — 3 tur boyunca tur başı 14 hasar." }
     ]
   },
   {
@@ -93,14 +151,20 @@ window.MONSTER_DATA = [
     milestone: 2,
     role: "Maze scout",
     color: "#b683ff",
-    hp: 92,
-    power: 3,
+    hp: 92, power: 4, defense: 10, speed: 5,
     moves: [
-      { attack: "Flood Fill", damage: 20 },
-      { attack: "Shortest Slash", damage: 25 },
-      { attack: "Backtrack Bite", damage: 15 },
-      { attack: "Deadend Detonation", damage: 20 },
-      { attack: "Matrix Mauling", damage: 15 }
+      { name: "Flood Fill", type: "damage", basePower: 24, accuracy: 90, target: "enemy",
+        description: "Tüm odaları su basar — geniş alan hasarı." },
+      { name: "Shortest Slash", type: "damage", basePower: 28, accuracy: 90, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "En kısa yol — hasar verip kendi hızını %30 artırır.", buffSelf: true },
+      { name: "Backtrack Bite", type: "lifesteal", basePower: 18, accuracy: 95, target: "enemy",
+        description: "Geri izi sürerek can çalar (hasarın %50'si)." },
+      { name: "Deadend Detonation", type: "damage", basePower: 32, accuracy: 80, target: "enemy",
+        description: "Çıkmaz noktasında patlatır — yüksek hasar." },
+      { name: "Matrix Mauling", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Labirent matrisini parçalar, düşman defansını %20 düşürür." }
     ]
   },
   {
@@ -111,14 +175,21 @@ window.MONSTER_DATA = [
     milestone: 2,
     role: "Data mage",
     color: "#4bd27d",
-    hp: 96,
-    power: 4,
+    hp: 96, power: 5, defense: 9, speed: 4,
     moves: [
-      { attack: "Comprehension Crush", damage: 20 },
-      { attack: "Decorator Doom", damage: 20 },
-      { attack: "NumPy Nova", damage: 25 },
-      { attack: "Magic Matrix", damage: 15 },
-      { attack: "Pandas Pounce", damage: 20 }
+      { name: "Comprehension Crush", type: "damage", basePower: 22, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "List comprehension — hasar + düşman gücü %20 düşer." },
+      { name: "Decorator Doom", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "power", modifier: 1.4, duration: 3 },
+        description: "@decorator sarmalar — 3 tur kendi gücü %40 artar." },
+      { name: "NumPy Nova", type: "damage", basePower: 30, accuracy: 85, target: "enemy",
+        description: "Vectorize edilmiş yıldız patlaması." },
+      { name: "Magic Matrix", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 10, duration: 3 },
+        description: "Matris büyüsü — 3 tur tur başı 10 hasar." },
+      { name: "Pandas Pounce", type: "damage", basePower: 24, accuracy: 90, target: "enemy",
+        description: "DataFrame ağırlığıyla zıplar." }
     ]
   },
   {
@@ -128,14 +199,20 @@ window.MONSTER_DATA = [
     milestone: 3,
     role: "Async trickster",
     color: "#ff6fb1",
-    hp: 88,
-    power: 4,
+    hp: 88, power: 4, defense: 10, speed: 5,
     moves: [
-      { attack: "Callback Chaos", damage: 20 },
-      { attack: "Signal Spike", damage: 25 },
-      { attack: "Handler Haven", damage: 15 },
-      { attack: "Async Abyss", damage: 15 },
-      { attack: "Function Pointer Pierce", damage: 20 }
+      { name: "Callback Chaos", type: "stun", accuracy: 70, target: "enemy",
+        effect: { duration: 1 },
+        description: "Çakışan callback'ler — düşman 1 tur sersemler." },
+      { name: "Signal Spike", type: "damage", basePower: 26, accuracy: 90, target: "enemy",
+        description: "Async sinyal sivri vuruşu." },
+      { name: "Handler Haven", type: "heal", basePower: 25, accuracy: 100, target: "self",
+        description: "Error handler — 25 HP iyileşir." },
+      { name: "Async Abyss", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "speed", modifier: 0.7, duration: 3, chance: 1.0 },
+        description: "Düşmanı bekleyen kuyruğa sokar — hızı %30 düşer." },
+      { name: "Function Pointer Pierce", type: "damage", basePower: 28, accuracy: 90, target: "enemy",
+        description: "Dolaylı çağrı — keskin nokta hasarı." }
     ]
   },
   {
@@ -145,14 +222,20 @@ window.MONSTER_DATA = [
     milestone: 3,
     role: "Network striker",
     color: "#53d8ff",
-    hp: 90,
-    power: 3,
+    hp: 90, power: 4, defense: 10, speed: 5,
     moves: [
-      { attack: "Packet Ping", damage: 15 },
-      { attack: "Port Proxy", damage: 20 },
-      { attack: "IP Inbound", damage: 20 },
-      { attack: "Request Rush", damage: 25 },
-      { attack: "Timeout Trap", damage: 15 }
+      { name: "Packet Ping", type: "damage", basePower: 16, accuracy: 100, target: "enemy",
+        description: "Garantili ICMP darbesi." },
+      { name: "Port Proxy", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Proxy redirect — hasar + düşman defansı %20 düşer." },
+      { name: "IP Inbound", type: "damage", basePower: 24, accuracy: 90, target: "enemy",
+        description: "Gelen istek selini başlatır." },
+      { name: "Request Rush", type: "damage", basePower: 28, accuracy: 88, target: "enemy",
+        description: "Yoğun istek dalgası." },
+      { name: "Timeout Trap", type: "stun", accuracy: 65, target: "enemy",
+        effect: { duration: 1 },
+        description: "Düşmanı zaman aşımına sokar — 1 tur sersemler." }
     ]
   },
   {
@@ -162,14 +245,21 @@ window.MONSTER_DATA = [
     milestone: 3,
     role: "Refactor bruiser",
     color: "#9dd7ff",
-    hp: 116,
-    power: 3,
+    hp: 116, power: 3, defense: 12, speed: 3,
     moves: [
-      { attack: "Clean Code Crush", damage: 20 },
-      { attack: "Refactor Ray", damage: 20 },
-      { attack: "Modular Matrix", damage: 25 },
-      { attack: "Comment Cleanse", damage: 15 },
-      { attack: "Bug Buster", damage: 20 }
+      { name: "Clean Code Crush", type: "damage", basePower: 22, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 1.3, duration: 3, chance: 1.0 },
+        description: "Temiz kod darbesi — hasar verirken kendi defansı %30 artar.", buffSelf: true },
+      { name: "Refactor Ray", type: "heal", basePower: 28, accuracy: 100, target: "self",
+        description: "Refactor enerjisiyle 28 HP iyileşir." },
+      { name: "Modular Matrix", type: "damage", basePower: 30, accuracy: 88, target: "enemy",
+        description: "Modüler matris çarpışması." },
+      { name: "Comment Cleanse", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "power", modifier: 1.3, duration: 3 },
+        description: "Yorum temizliği — 3 tur kendi gücü %30 artar." },
+      { name: "Bug Buster", type: "damage", basePower: 24, accuracy: 90, target: "enemy",
+        effect: { stat: "power", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Bug ezici — hasar + düşman gücü %20 düşer." }
     ]
   },
   {
@@ -179,14 +269,20 @@ window.MONSTER_DATA = [
     milestone: 4,
     role: "RAG tactician",
     color: "#a78bfa",
-    hp: 104,
-    power: 4,
+    hp: 104, power: 4, defense: 10, speed: 4,
     moves: [
-      { attack: "Vector Embed", damage: 20 },
-      { attack: "Prompt Power", damage: 20 },
-      { attack: "Cosine Crush", damage: 25 },
-      { attack: "Context Cleanse", damage: 15 },
-      { attack: "Anti-Hallucination", damage: 20 }
+      { name: "Vector Embed", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "accuracy", modifier: 1.3, duration: 3 },
+        description: "Embedding alanı — 3 tur isabet %30 artar." },
+      { name: "Prompt Power", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        description: "İyi mühendislenmiş prompt darbesi." },
+      { name: "Cosine Crush", type: "damage", basePower: 32, accuracy: 82, target: "enemy",
+        description: "Cosine benzerliğiyle hedefi kilitler." },
+      { name: "Context Cleanse", type: "heal", basePower: 26, accuracy: 100, target: "self",
+        description: "Bağlamı temizleyip 26 HP iyileşir." },
+      { name: "Anti-Hallucination", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Düşmanın yanılsamalarını söker — isabet %25 düşer." }
     ]
   },
   {
@@ -196,14 +292,21 @@ window.MONSTER_DATA = [
     milestone: 4,
     role: "Arcade bruiser",
     color: "#ffd166",
-    hp: 112,
-    power: 3,
+    hp: 112, power: 4, defense: 12, speed: 3,
     moves: [
-      { attack: "Ghost Chaser", damage: 20 },
-      { attack: "Power Pellet", damage: 25 },
-      { attack: "Grid Glide", damage: 15 },
-      { attack: "Pellet Popping", damage: 15 },
-      { attack: "Fruit Frenzy", damage: 20 }
+      { name: "Ghost Chaser", type: "damage", basePower: 24, accuracy: 90, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Hayalet kovalar — hasar + kendi hızı %30 artar.", buffSelf: true },
+      { name: "Power Pellet", type: "damage", basePower: 30, accuracy: 88, target: "enemy",
+        effect: { stat: "power", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Power pellet — hasar + kendi gücü %30 artar.", buffSelf: true },
+      { name: "Grid Glide", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.4, duration: 3 },
+        description: "Grid kayışı — 3 tur defans %40 artar." },
+      { name: "Pellet Popping", type: "damage", basePower: 18, accuracy: 100, target: "enemy",
+        description: "Garantili nokta yiyişi." },
+      { name: "Fruit Frenzy", type: "heal", basePower: 22, accuracy: 100, target: "self",
+        description: "Bonus meyve — 22 HP iyileşir." }
     ]
   },
   {
@@ -213,14 +316,21 @@ window.MONSTER_DATA = [
     milestone: 4,
     role: "Network controller",
     color: "#56cfe1",
-    hp: 106,
-    power: 3,
+    hp: 106, power: 3, defense: 11, speed: 4,
     moves: [
-      { attack: "Subnet Slash", damage: 20 },
-      { attack: "Gateway Grip", damage: 20 },
-      { attack: "Broadcast Blast", damage: 25 },
-      { attack: "IP Conflict", damage: 15 },
-      { attack: "Router Rush", damage: 15 }
+      { name: "Subnet Slash", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        description: "CIDR kesimi." },
+      { name: "Gateway Grip", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "speed", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Gateway tıkanması — düşman hızı %25 düşer." },
+      { name: "Broadcast Blast", type: "damage", basePower: 28, accuracy: 85, target: "enemy",
+        description: "Broadcast adresine yayın saldırısı." },
+      { name: "IP Conflict", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 10, duration: 3 },
+        description: "IP çakışması — 3 tur tur başı 10 hasar." },
+      { name: "Router Rush", type: "stun", accuracy: 60, target: "enemy",
+        effect: { duration: 1 },
+        description: "Yönlendirme tablosu çöker — 1 tur sersemleme." }
     ]
   },
   {
@@ -230,14 +340,21 @@ window.MONSTER_DATA = [
     milestone: 5,
     role: "Cyber assassin",
     color: "#6c757d",
-    hp: 94,
-    power: 5,
+    hp: 94, power: 5, defense: 9, speed: 5,
     moves: [
-      { attack: "Nmap Needle", damage: 20 },
-      { attack: "Metasploit Maverick", damage: 25 },
-      { attack: "Payload Pounce", damage: 20 },
-      { attack: "Reverse Shell Rush", damage: 15 },
-      { attack: "Bruteforce Blast", damage: 15 }
+      { name: "Nmap Needle", type: "damage", basePower: 22, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.7, duration: 3, chance: 1.0 },
+        description: "Port taraması — hasar + düşman defansı %30 düşer." },
+      { name: "Metasploit Maverick", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 14, duration: 3 },
+        description: "Virüs payload — 3 tur boyunca tur başı 14 hasar." },
+      { name: "Payload Pounce", type: "damage", basePower: 28, accuracy: 88, target: "enemy",
+        description: "Payload teslimatı — yüksek hasar." },
+      { name: "Reverse Shell Rush", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 0.6, duration: 3, chance: 1.0 },
+        description: "Bind shell ele geçirir — düşman gücü %40 düşer." },
+      { name: "Bruteforce Blast", type: "damage", basePower: 36, accuracy: 75, target: "enemy",
+        description: "Brute force — az isabetli ama yıkıcı." }
     ]
   },
   {
@@ -248,14 +365,20 @@ window.MONSTER_DATA = [
     milestone: 5,
     role: "Protocol striker",
     color: "#f77f00",
-    hp: 100,
-    power: 4,
+    hp: 100, power: 4, defense: 10, speed: 4,
     moves: [
-      { attack: "Status Strike (200 OK)", damage: 20 },
-      { attack: "NotFound Nova (404)", damage: 20 },
-      { attack: "Handshake Hook", damage: 25 },
-      { attack: "Server Error Slam (500)", damage: 25 },
-      { attack: "Header Heave", damage: 15 }
+      { name: "Status Strike (200 OK)", type: "damage", basePower: 24, accuracy: 95, target: "enemy",
+        description: "Onaylı çağrı — temiz hasar." },
+      { name: "NotFound Nova (404)", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "404 patlaması — hasar + düşman isabeti %20 düşer." },
+      { name: "Handshake Hook", type: "damage", basePower: 28, accuracy: 88, target: "enemy",
+        description: "3-way handshake çengeli." },
+      { name: "Server Error Slam (500)", type: "recoil", basePower: 38, accuracy: 85, target: "enemy",
+        description: "500 ile yıkıcı çarpma — hasarın %25'i geri teper." },
+      { name: "Header Heave", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 1.2, duration: 2, chance: 1.0 },
+        description: "Header üst üste binmesi — hasar + kendi gücü %20 artar.", buffSelf: true }
     ]
   },
   {
@@ -265,14 +388,22 @@ window.MONSTER_DATA = [
     milestone: 5,
     role: "Container tank",
     color: "#80ed99",
-    hp: 132,
-    power: 3,
+    hp: 132, power: 3, defense: 14, speed: 3,
     moves: [
-      { attack: "Container Compose", damage: 20 },
-      { attack: "Volume Vault", damage: 15 },
-      { attack: "Network Nexus", damage: 20 },
-      { attack: "Daemon Detonation", damage: 25 },
-      { attack: "Image Influx", damage: 15 }
+      { name: "Container Compose", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.6, duration: 3 },
+        description: "Docker compose zırhı — 3 tur defans %60 artar." },
+      { name: "Volume Vault", type: "heal", basePower: 32, accuracy: 100, target: "self",
+        description: "Persistent volume — 32 HP iyileşir." },
+      { name: "Network Nexus", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "speed", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Bridge network — hasar + düşman hızı %25 düşer." },
+      { name: "Daemon Detonation", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 12, duration: 3 },
+        description: "Arka plan daemon — 3 tur tur başı 12 hasar." },
+      { name: "Image Influx", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 1.2, duration: 2, chance: 1.0 },
+        description: "Image katmanları — hasar + kendi gücü %20 artar.", buffSelf: true }
     ]
   },
   {
@@ -282,14 +413,22 @@ window.MONSTER_DATA = [
     milestone: 6,
     role: "Support debuffer",
     color: "#cdb4db",
-    hp: 108,
-    power: 2,
+    hp: 108, power: 2, defense: 11, speed: 3,
     moves: [
-      { attack: "Collaborative Commit", damage: 20 },
-      { attack: "Markdown Mastery", damage: 15 },
-      { attack: "Conflict Resolution", damage: 20 },
-      { attack: "Pull Request Power", damage: 25 },
-      { attack: "Repo Rush", damage: 15 }
+      { name: "Collaborative Commit", type: "damage", basePower: 16, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 0.6, duration: 3, chance: 1.0 },
+        description: "Birlikte commit — düşman gücü %40 düşer." },
+      { name: "Markdown Mastery", type: "damage", basePower: 14, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.6, duration: 3, chance: 1.0 },
+        description: "Markdown vuruşu — düşman defansı %40 düşer." },
+      { name: "Conflict Resolution", type: "heal", basePower: 28, accuracy: 100, target: "self",
+        description: "Merge conflict çözümü — 28 HP iyileşir." },
+      { name: "Pull Request Power", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "PR review — hasar + düşman isabeti %25 düşer." },
+      { name: "Repo Rush", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.4, duration: 3 },
+        description: "Repo siperi — 3 tur defans %40 artar." }
     ]
   },
   {
@@ -299,14 +438,21 @@ window.MONSTER_DATA = [
     milestone: 6,
     role: "Real-time striker",
     color: "#00f5d4",
-    hp: 90,
-    power: 5,
+    hp: 90, power: 5, defense: 9, speed: 6,
     moves: [
-      { attack: "WebSocket Wave", damage: 25 },
-      { attack: "Single Page Smash", damage: 20 },
-      { attack: "JWT Jacket", damage: 15 },
-      { attack: "Auth Armor (2FA)", damage: 15 },
-      { attack: "Database Duel", damage: 20 }
+      { name: "WebSocket Wave", type: "damage", basePower: 30, accuracy: 90, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Real-time dalga — hasar + kendi hızı %30 artar.", buffSelf: true },
+      { name: "Single Page Smash", type: "damage", basePower: 26, accuracy: 90, target: "enemy",
+        description: "SPA çarpışması — yüksek hasar." },
+      { name: "JWT Jacket", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.3, duration: 2 },
+        description: "JWT zırhı — 2 tur defans %30 artar." },
+      { name: "Auth Armor (2FA)", type: "heal", basePower: 20, accuracy: 100, target: "self",
+        description: "İki faktörlü onarım — 20 HP iyileşir." },
+      { name: "Database Duel", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "speed", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "DB sorgu yarışı — düşman hızı %25 düşer." }
     ]
   },
   {
@@ -317,14 +463,20 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Memory bruiser",
     color: "#3bb7ff",
-    hp: 118,
-    power: 3,
+    hp: 118, power: 3, defense: 12, speed: 3,
     moves: [
-      { attack: "Memset Mangle", damage: 20 },
-      { attack: "Pointer Pounce", damage: 15 },
-      { attack: "Malloc Magic", damage: 25 },
-      { attack: "Substr Slash", damage: 20 },
-      { attack: "Bonus Bond (Linked List)", damage: 15 }
+      { name: "Memset Mangle", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "defense", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "memset taraması — düşman defansı %25 düşer." },
+      { name: "Pointer Pounce", type: "damage", basePower: 26, accuracy: 90, target: "enemy",
+        description: "Pointer sıçraması — keskin nokta vuruşu." },
+      { name: "Malloc Magic", type: "heal", basePower: 30, accuracy: 100, target: "self",
+        description: "Yeni blok malloc — 30 HP iyileşir." },
+      { name: "Substr Slash", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        description: "Substring dilimi." },
+      { name: "Bonus Bond (Linked List)", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.5, duration: 3 },
+        description: "Bağlı liste zinciri — 3 tur defans %50 artar." }
     ]
   },
   {
@@ -335,14 +487,20 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Process controller",
     color: "#69d2e7",
-    hp: 104,
-    power: 3,
+    hp: 104, power: 3, defense: 11, speed: 4,
     moves: [
-      { attack: "Fork Frenzy", damage: 20 },
-      { attack: "Pipe Punch", damage: 20 },
-      { attack: "Dup2 Duplicate", damage: 15 },
-      { attack: "Execve Execute", damage: 25 },
-      { attack: "Waitpid Watch", damage: 15 }
+      { name: "Fork Frenzy", type: "recoil", basePower: 32, accuracy: 90, target: "enemy",
+        description: "Fork bombası — yüksek hasar ama %25'i geri teper." },
+      { name: "Pipe Punch", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Pipe geçişi — hasar + kendi hızı %30 artar.", buffSelf: true },
+      { name: "Dup2 Duplicate", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.4, duration: 2 },
+        description: "dup2 yedeği — 2 tur defans %40 artar." },
+      { name: "Execve Execute", type: "damage", basePower: 28, accuracy: 88, target: "enemy",
+        description: "execve patlaması — büyük hasar." },
+      { name: "Waitpid Watch", type: "heal", basePower: 22, accuracy: 100, target: "self",
+        description: "Çocuk süreç bekleyişi — 22 HP iyileşir." }
     ]
   },
   {
@@ -353,14 +511,20 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Signal striker",
     color: "#00b4d8",
-    hp: 94,
-    power: 3,
+    hp: 94, power: 3, defense: 9, speed: 5,
     moves: [
-      { attack: "Signal One (SIGUSR1)", damage: 15 },
-      { attack: "Signal Two (SIGUSR2)", damage: 15 },
-      { attack: "Kill Command", damage: 25 },
-      { attack: "Bit Shift Bash", damage: 20 },
-      { attack: "Sigaction Shield", damage: 20 }
+      { name: "Signal One (SIGUSR1)", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        description: "USR1 sinyali — temiz hasar." },
+      { name: "Signal Two (SIGUSR2)", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "USR2 sinyali — düşman isabeti %20 düşer." },
+      { name: "Kill Command", type: "damage", basePower: 75, accuracy: 30, target: "enemy",
+        description: "SIGKILL — nadiren isabet eder ama isabet ederse devirir." },
+      { name: "Bit Shift Bash", type: "damage", basePower: 26, accuracy: 90, target: "enemy",
+        description: "Bit kaydırma darbesi." },
+      { name: "Sigaction Shield", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.5, duration: 3 },
+        description: "sigaction handler — 3 tur defans %50 artar." }
     ]
   },
   {
@@ -371,14 +535,21 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Map guardian",
     color: "#8ac926",
-    hp: 110,
-    power: 2,
+    hp: 110, power: 3, defense: 12, speed: 3,
     moves: [
-      { attack: "MiniLibX Window", damage: 20 },
-      { attack: "Flood Fill Force", damage: 25 },
-      { attack: "Key Hook Hack", damage: 15 },
-      { attack: "XPM X-ray", damage: 15 },
-      { attack: "Map Monitor", damage: 20 }
+      { name: "MiniLibX Window", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "defense", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "MiniLibX penceresi — düşman defansı %25 düşer." },
+      { name: "Flood Fill Force", type: "damage", basePower: 28, accuracy: 88, target: "enemy",
+        description: "Flood fill — büyük alan hasarı." },
+      { name: "Key Hook Hack", type: "stun", accuracy: 60, target: "enemy",
+        effect: { duration: 1 },
+        description: "Tuş yakalama — düşman 1 tur sersemler." },
+      { name: "XPM X-ray", type: "heal", basePower: 24, accuracy: 100, target: "self",
+        description: "XPM piksel onarımı — 24 HP iyileşir." },
+      { name: "Map Monitor", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.4, duration: 3 },
+        description: "Harita gözcülüğü — 3 tur defans %40 artar." }
     ]
   },
   {
@@ -389,14 +560,21 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Wireframe scout",
     color: "#48cae4",
-    hp: 98,
-    power: 3,
+    hp: 98, power: 3, defense: 10, speed: 4,
     moves: [
-      { attack: "Isometric Projection", damage: 20 },
-      { attack: "Bresenham Blitz", damage: 25 },
-      { attack: "Color Gradient", damage: 15 },
-      { attack: "Splitter String", damage: 15 },
-      { attack: "Loop Hook", damage: 20 }
+      { name: "Isometric Projection", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        effect: { stat: "accuracy", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Izometrik açı — hasar + kendi isabeti %30 artar.", buffSelf: true },
+      { name: "Bresenham Blitz", type: "damage", basePower: 30, accuracy: 85, target: "enemy",
+        description: "Bresenham çizgi taraması — yüksek hasar." },
+      { name: "Color Gradient", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "power", modifier: 1.3, duration: 3 },
+        description: "Renk gradient buff — 3 tur güç %30 artar." },
+      { name: "Splitter String", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "ft_split kesiği — düşman gücü %20 düşer." },
+      { name: "Loop Hook", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        description: "Hook döngüsü — kararlı vuruş." }
     ]
   },
   {
@@ -408,14 +586,21 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Fractal mage",
     color: "#9b5de5",
-    hp: 92,
-    power: 4,
+    hp: 92, power: 4, defense: 9, speed: 4,
     moves: [
-      { attack: "Mandelbrot Madness", damage: 20 },
-      { attack: "Julia Judgment", damage: 20 },
-      { attack: "Iteration Infinity", damage: 25 },
-      { attack: "Zoom Vortex", damage: 15 },
-      { attack: "Complex Crush", damage: 15 }
+      { name: "Mandelbrot Madness", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 12, duration: 3 },
+        description: "Mandelbrot çekirdeği — 3 tur tur başı 12 hasar." },
+      { name: "Julia Judgment", type: "damage", basePower: 26, accuracy: 90, target: "enemy",
+        description: "Julia kümesi — keskin yargı." },
+      { name: "Iteration Infinity", type: "damage", basePower: 35, accuracy: 80, target: "enemy",
+        description: "Sonsuz iterasyon — yüksek hasar, az isabet." },
+      { name: "Zoom Vortex", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "accuracy", modifier: 1.3, duration: 3 },
+        description: "Zoom girdabı — 3 tur isabet %30 artar." },
+      { name: "Complex Crush", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "speed", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Karmaşık sayı çarpması — düşman hızı %20 düşer." }
     ]
   },
   {
@@ -426,14 +611,22 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Shell disruptor",
     color: "#f4a261",
-    hp: 106,
-    power: 4,
+    hp: 106, power: 4, defense: 10, speed: 4,
     moves: [
-      { attack: "Lexer Laser", damage: 20 },
-      { attack: "Env Expansion", damage: 20 },
-      { attack: "Herodoc Havoc", damage: 25 },
-      { attack: "Builtin Bash", damage: 15 },
-      { attack: "Signal Silence", damage: 15 }
+      { name: "Lexer Laser", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Lexer ışını — düşman isabeti %20 düşer." },
+      { name: "Env Expansion", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "power", modifier: 1.4, duration: 3 },
+        description: "Env genişletme — 3 tur güç %40 artar." },
+      { name: "Fork Frenzy", type: "recoil", basePower: 30, accuracy: 88, target: "enemy",
+        description: "Fork bombası — yüksek hasar, %25 geri tepme." },
+      { name: "Pipe Punch", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Pipe geçişi — hasar + kendi hızı %30 artar.", buffSelf: true },
+      { name: "Signal Silence", type: "stun", accuracy: 55, target: "enemy",
+        effect: { duration: 1 },
+        description: "Ctrl+C bastırır — 1 tur sersemleme." }
     ]
   },
   {
@@ -444,14 +637,21 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Thread tactician",
     color: "#e76f51",
-    hp: 112,
-    power: 3,
+    hp: 112, power: 3, defense: 11, speed: 4,
     moves: [
-      { attack: "Thread Thump", damage: 20 },
-      { attack: "Mutex Mutate", damage: 20 },
-      { attack: "Deadlock Dismiss", damage: 25 },
-      { attack: "Usleep Utility", damage: 15 },
-      { attack: "Data Race Detonator", damage: 15 }
+      { name: "Thread Thump", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Thread vuruşu — hasar + kendi hızı %30 artar.", buffSelf: true },
+      { name: "Mutex Mutate", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.5, duration: 3 },
+        description: "Mutex kilidi — 3 tur defans %50 artar." },
+      { name: "Deadlock Dismiss", type: "stun", accuracy: 70, target: "enemy",
+        effect: { duration: 1 },
+        description: "Deadlock tetikler — düşman 1 tur sırasını atlar." },
+      { name: "Usleep Utility", type: "heal", basePower: 24, accuracy: 100, target: "self",
+        description: "Tampon usleep — 24 HP iyileşir." },
+      { name: "Data Race Detonator", type: "recoil", basePower: 55, accuracy: 85, target: "enemy",
+        description: "Data race patlaması — devasa hasar, %25 geri tepme." }
     ]
   },
   {
@@ -462,14 +662,20 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Ray mage",
     color: "#f72585",
-    hp: 96,
-    power: 4,
+    hp: 96, power: 4, defense: 9, speed: 4,
     moves: [
-      { attack: "Ray Intersection", damage: 20 },
-      { attack: "Vector Dot Product", damage: 20 },
-      { attack: "Phong Reflection", damage: 25 },
-      { attack: "Normal Vector", damage: 15 },
-      { attack: "Shadow Ray", damage: 15 }
+      { name: "Ray Intersection", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        description: "Işın kesişimi — kararlı hasar." },
+      { name: "Vector Dot Product", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "accuracy", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Dot product — hasar + kendi isabeti %30 artar.", buffSelf: true },
+      { name: "Phong Reflection", type: "damage", basePower: 30, accuracy: 85, target: "enemy",
+        description: "Phong parlaması — yüksek hasar." },
+      { name: "Normal Vector", type: "heal", basePower: 24, accuracy: 100, target: "self",
+        description: "Normal vektör onarımı — 24 HP iyileşir." },
+      { name: "Shadow Ray", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Gölge ışını — düşman isabeti %25 düşer." }
     ]
   },
   {
@@ -480,14 +686,22 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Wall caster",
     color: "#fb8500",
-    hp: 100,
-    power: 4,
+    hp: 100, power: 4, defense: 10, speed: 4,
     moves: [
-      { attack: "DDA Dash", damage: 25 },
-      { attack: "Fish-eye Fix", damage: 20 },
-      { attack: "Wall Texture", damage: 15 },
-      { attack: "FOV Flare", damage: 20 },
-      { attack: "Sprite Slice", damage: 15 }
+      { name: "DDA Dash", type: "damage", basePower: 30, accuracy: 88, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "DDA algoritması — hasar + kendi hızı %30 artar.", buffSelf: true },
+      { name: "Fish-eye Fix", type: "heal", basePower: 22, accuracy: 100, target: "self",
+        description: "Fish-eye düzeltme — 22 HP iyileşir." },
+      { name: "Wall Texture", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.4, duration: 3 },
+        description: "Duvar dokusu — 3 tur defans %40 artar." },
+      { name: "FOV Flare", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "FOV alev — düşman isabeti %20 düşer." },
+      { name: "Sprite Slice", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Sprite dilimi — düşman defansı %20 düşer." }
     ]
   },
   {
@@ -498,14 +712,21 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "Subnet weaver",
     color: "#00bbf9",
-    hp: 104,
-    power: 3,
+    hp: 104, power: 3, defense: 11, speed: 4,
     moves: [
-      { attack: "Subnet Slash (CIDR)", damage: 20 },
-      { attack: "AND Operation", damage: 20 },
-      { attack: "Next Hop Hack", damage: 25 },
-      { attack: "Broadcast Blast", damage: 15 },
-      { attack: "Gateway Guardian", damage: 15 }
+      { name: "Subnet Slash (CIDR)", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        description: "CIDR taraması — kararlı hasar." },
+      { name: "AND Operation", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Bitwise AND — düşman defansı %25 düşer." },
+      { name: "Next Hop Hack", type: "damage", basePower: 32, accuracy: 82, target: "enemy",
+        description: "Sonraki hop — yüksek hasar." },
+      { name: "Broadcast Blast", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 10, duration: 3 },
+        description: "Broadcast spam — 3 tur tur başı 10 hasar." },
+      { name: "Gateway Guardian", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.5, duration: 3 },
+        description: "Gateway koruması — 3 tur defans %50 artar." }
     ]
   },
   {
@@ -516,14 +737,21 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "OOP shapeshifter",
     color: "#c77dff",
-    hp: 102,
-    power: 4,
+    hp: 102, power: 4, defense: 11, speed: 4,
     moves: [
-      { attack: "Canonical Clamp", damage: 20 },
-      { attack: "Virtual Vortex", damage: 25 },
-      { attack: "Stream Surge", damage: 15 },
-      { attack: "Memory Mender", damage: 20 },
-      { attack: "Abstract Arrow", damage: 15 }
+      { name: "Canonical Clamp", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "defense", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "Canonical form — hasar + kendi defansı %30 artar.", buffSelf: true },
+      { name: "Virtual Vortex", type: "damage", basePower: 30, accuracy: 85, target: "enemy",
+        description: "Virtual fonksiyon girdabı — yüksek hasar." },
+      { name: "Stream Surge", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "speed", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "<< operatör akımı — düşman hızı %20 düşer." },
+      { name: "Memory Mender", type: "heal", basePower: 28, accuracy: 100, target: "self",
+        description: "Destructor tamiri — 28 HP iyileşir." },
+      { name: "Abstract Arrow", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 1.2, duration: 2, chance: 1.0 },
+        description: "Soyut sınıf oku — hasar + kendi gücü %20 artar.", buffSelf: true }
     ]
   },
   {
@@ -534,14 +762,22 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "HTTP controller",
     color: "#ffb703",
-    hp: 108,
-    power: 4,
+    hp: 108, power: 4, defense: 11, speed: 4,
     moves: [
-      { attack: "Multiplexing Matrix", damage: 25 },
-      { attack: "Socket Siege", damage: 20 },
-      { attack: "Status Shock", damage: 15 },
-      { attack: "CGI Catalyst", damage: 20 },
-      { attack: "Chunked Crush", damage: 15 }
+      { name: "Multiplexing Matrix", type: "damage", basePower: 30, accuracy: 88, target: "enemy",
+        effect: { stat: "speed", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "epoll matrisi — hasar + kendi hızı %30 artar.", buffSelf: true },
+      { name: "Socket Siege", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        description: "Socket kuşatması." },
+      { name: "Status Shock", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.75, duration: 3, chance: 1.0 },
+        description: "Status code şoku — düşman isabeti %25 düşer." },
+      { name: "CGI Catalyst", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "power", modifier: 1.4, duration: 3 },
+        description: "CGI scripti — 3 tur güç %40 artar." },
+      { name: "Chunked Crush", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 10, duration: 3 },
+        description: "Chunked transfer — 3 tur tur başı 10 hasar." }
     ]
   },
   {
@@ -552,14 +788,22 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "IRC controller",
     color: "#90be6d",
-    hp: 106,
-    power: 4,
+    hp: 106, power: 4, defense: 11, speed: 4,
     moves: [
-      { attack: "Multiplexing Pulse (poll)", damage: 25 },
-      { attack: "Authentication Arch", damage: 20 },
-      { attack: "Privilege Purge (KICK)", damage: 20 },
-      { attack: "Private Whisper (PRIVMSG)", damage: 15 },
-      { attack: "Mode Manipulation", damage: 15 }
+      { name: "Multiplexing Pulse (poll)", type: "damage", basePower: 30, accuracy: 88, target: "enemy",
+        description: "poll() darbesi — yüksek hasar." },
+      { name: "Authentication Arch", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.4, duration: 3 },
+        description: "PASS kalkanı — 3 tur defans %40 artar." },
+      { name: "Privilege Purge (KICK)", type: "stun", accuracy: 65, target: "enemy",
+        effect: { duration: 1 },
+        description: "KICK komutu — düşman 1 tur sersemler." },
+      { name: "Private Whisper (PRIVMSG)", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "power", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "Gizli mesaj — düşman gücü %20 düşer." },
+      { name: "Mode Manipulation", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "defense", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "MODE değişimi — düşman defansı %20 düşer." }
     ]
   },
   {
@@ -570,14 +814,22 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "DevOps guardian",
     color: "#70e000",
-    hp: 134,
-    power: 3,
+    hp: 134, power: 3, defense: 13, speed: 3,
     moves: [
-      { attack: "Compose Command", damage: 25 },
-      { attack: "Volume Vault", damage: 20 },
-      { attack: "TLS Tether (Port 443)", damage: 15 },
-      { attack: "Build Bastion", damage: 20 },
-      { attack: "Network Node", damage: 15 }
+      { name: "Compose Command", type: "buff", accuracy: 100, target: "self",
+        effect: { stat: "defense", modifier: 1.6, duration: 3 },
+        description: "docker-compose up — 3 tur defans %60 artar." },
+      { name: "Volume Vault", type: "heal", basePower: 30, accuracy: 100, target: "self",
+        description: "Persistent volume — 30 HP iyileşir." },
+      { name: "TLS Tether (Port 443)", type: "damage", basePower: 18, accuracy: 95, target: "enemy",
+        effect: { stat: "accuracy", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "TLS handshake — düşman isabeti %20 düşer." },
+      { name: "Build Bastion", type: "damage", basePower: 24, accuracy: 92, target: "enemy",
+        effect: { stat: "power", modifier: 1.2, duration: 2, chance: 1.0 },
+        description: "Dockerfile build — hasar + kendi gücü %20 artar.", buffSelf: true },
+      { name: "Network Node", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 12, duration: 3 },
+        description: "Container ağı — 3 tur tur başı 12 hasar." }
     ]
   },
   {
@@ -588,14 +840,21 @@ window.MONSTER_DATA = [
     track: "legacy",
     role: "STL apex mage",
     color: "#b5179e",
-    hp: 100,
-    power: 5,
+    hp: 100, power: 5, defense: 9, speed: 4,
     moves: [
-      { attack: "Exception Execute (Try-Catch)", damage: 20 },
-      { attack: "Dynamic Cast Detonator", damage: 25 },
-      { attack: "Template Torrent", damage: 20 },
-      { attack: "Container Crush (STL)", damage: 15 },
-      { attack: "RPN Reckoning (Module 09)", damage: 15 }
+      { name: "Exception Execute (Try-Catch)", type: "damage", basePower: 22, accuracy: 92, target: "enemy",
+        effect: { stat: "defense", modifier: 1.3, duration: 2, chance: 1.0 },
+        description: "try/catch zırhı — hasar + kendi defansı %30 artar.", buffSelf: true },
+      { name: "Dynamic Cast Detonator", type: "recoil", basePower: 38, accuracy: 85, target: "enemy",
+        description: "dynamic_cast patlaması — büyük hasar, %25 geri tepme." },
+      { name: "Template Torrent", type: "damage", basePower: 28, accuracy: 88, target: "enemy",
+        description: "Template instantiation seli — yüksek hasar." },
+      { name: "Container Crush (STL)", type: "damage", basePower: 20, accuracy: 95, target: "enemy",
+        effect: { stat: "defense", modifier: 0.8, duration: 3, chance: 1.0 },
+        description: "STL container ezimi — düşman defansı %20 düşer." },
+      { name: "RPN Reckoning (Module 09)", type: "dot", accuracy: 90, target: "enemy",
+        effect: { modifier: 14, duration: 3 },
+        description: "RPN hesaplayıcı — 3 tur tur başı 14 hasar." }
     ]
   }
 ];
