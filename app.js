@@ -14,6 +14,13 @@ const COALITIONS = [
   { name: "Hufflepuff", color: "#d99a00" }
 ];
 
+const COALITION_CASTLES = {
+  Slytherin: "assets/kaleler/slyterin.jpg",
+  Gryffindor: "assets/kaleler/grifindor.png",
+  Ravenclaw: "assets/kaleler/rawenclow.png",
+  Hufflepuff: "assets/kaleler/hufflepuff.png"
+};
+
 const STARTING_WALLET = 80;
 
 const SHOP_ITEMS = [
@@ -4320,16 +4327,24 @@ function renderLeaderboards() {
     }))
     .sort((a, b) => b.score - a.score);
 
-  const html = rows.map((row, index) => `
-    <div class="leader-row">
-      <span class="coalition-dot" style="background:${row.color}"></span>
-      <span>${index + 1}. ${escapeHtml(row.name)}</span>
-      <strong>${row.score}</strong>
-    </div>
-  `).join("");
+  const html = rows.map((row, index) => {
+    const castleSrc = COALITION_CASTLES[row.name] || "";
+    return `
+      <div class="leader-row castle-row" style="--coalition-color:${row.color}">
+        <img class="castle-img" src="${escapeHtml(castleSrc)}" alt="" loading="eager" decoding="async">
+        <div class="castle-score">
+          <span>${index + 1}. ${escapeHtml(row.name)}</span>
+          <strong>${row.score}</strong>
+        </div>
+      </div>
+    `;
+  }).join("");
 
   for (const board of [els.menuLeaderboard, els.frontLeaderboard, els.resultLeaderboard]) {
-    if (board) board.innerHTML = html;
+    if (board) {
+      board.classList.add("castle-board");
+      board.innerHTML = html;
+    }
   }
 }
 

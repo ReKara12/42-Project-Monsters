@@ -753,6 +753,12 @@ select {
   gap: 8px;
 }
 
+.leader-list.castle-board {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(108px, 1fr);
+  gap: 12px;
+}
+
 .leader-row,
 .event-row {
   min-height: 46px;
@@ -764,6 +770,71 @@ select {
   background: var(--panel-2);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 0;
+}
+
+.castle-row {
+  min-height: 108px;
+  grid-template-columns: minmax(58px, 1fr) auto;
+  gap: 10px;
+  padding: 10px;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--coalition-color), transparent 58%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--coalition-color), transparent 88%), transparent 54%),
+    rgba(8, 11, 14, 0.76);
+}
+
+.castle-img {
+  width: 100%;
+  max-width: 130px;
+  aspect-ratio: 1;
+  object-fit: contain;
+  justify-self: start;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
+}
+
+.castle-score {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  text-align: right;
+  min-width: 56px;
+}
+
+.castle-score span {
+  max-width: 86px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.castle-score strong {
+  color: var(--text);
+  font-size: clamp(1.15rem, 2.6vw, 1.8rem);
+  line-height: 1;
+}
+
+.leader-panel .leader-list.castle-board {
+  gap: 8px;
+}
+
+.leader-panel .castle-row {
+  min-height: 88px;
+  grid-template-columns: minmax(46px, 1fr) auto;
+  padding: 8px;
+}
+
+.leader-panel .castle-img {
+  max-width: 90px;
+}
+
+.leader-panel .castle-score span {
+  max-width: 74px;
+  font-size: 0.62rem;
+}
+
+.leader-panel .castle-score strong {
+  font-size: clamp(1rem, 2vw, 1.35rem);
 }
 
 .event-row {
