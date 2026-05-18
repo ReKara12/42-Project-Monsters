@@ -2761,9 +2761,6 @@ function drawVillagePlayer(tileW, tileH) {
     villageCtx.fillRect(px + tileW * 0.34, py + tileH * 0.34, tileW * 0.1, tileH * 0.1);
     villageCtx.fillRect(px + tileW * 0.56, py + tileH * 0.34, tileW * 0.1, tileH * 0.1);
   }
-  villageCtx.strokeStyle = hexToRgba(coalition.color, 0.9);
-  villageCtx.lineWidth = 2;
-  villageCtx.strokeRect(px + 4, py + 4, tileW - 8, tileH - 8);
 }
 
 function drawVillageOverlay(canvas, palette) {
