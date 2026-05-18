@@ -39,8 +39,23 @@ async function handleAuthExchange(code, redirectUri) {
     fetch42(access_token, "/v2/me"),
     fetch42(access_token, "/v2/me/coalitions").catch(() => [])
   ]);
+  const projectsUsers = await fetchUserProjects(access_token, me).catch(() => null);
 
-  return shapeProfile(me, coalitions);
+  return shapeProfile(me, coalitions, projectsUsers);
+}
+
+async function fetchUserProjects(token, me) {
+  const userId = me?.id;
+  if (!userId) return null;
+  const all = [];
+  for (let page = 1; page <= 4; page += 1) {
+    const path = `/v2/users/${userId}/projects_users?filter[validated]=true&page[size]=100&page[number]=${page}`;
+    const rows = await fetch42(token, path);
+    if (!Array.isArray(rows)) return all;
+    all.push(...rows);
+    if (rows.length < 100) break;
+  }
+  return all;
 }
 
 function pickMainCursus(cursusUsers) {
@@ -63,11 +78,14 @@ function projectBelongsToCursus(projectUser, cursusUser) {
   return true;
 }
 
-function shapeProfile(me, coalitions) {
+function shapeProfile(me, coalitions, projectsUsers) {
   const coalition = coalitions.length > 0 ? coalitions[coalitions.length - 1] : null;
   const cursus = pickMainCursus(me.cursus_users);
-  const validated = Array.isArray(me.projects_users)
-    ? me.projects_users.filter((p) => p && p["validated?"] && projectBelongsToCursus(p, cursus))
+  const sourceProjects = Array.isArray(projectsUsers) && projectsUsers.length
+    ? projectsUsers
+    : me.projects_users;
+  const validated = Array.isArray(sourceProjects)
+    ? sourceProjects.filter((p) => p && p["validated?"] && projectBelongsToCursus(p, cursus))
     : [];
   const passedProjectSlugs = validated
     .map((p) => p.project?.slug || p.project?.name || "")
