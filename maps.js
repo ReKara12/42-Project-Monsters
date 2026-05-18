@@ -305,7 +305,7 @@ window.FRONT_MAPS.getVillageName = function getOverworldVillageName(milestone) {
  * ============================================================
  */
 /** Zemin PNG’si haritada kaç hücre kaplar (1x1 yerine 10x10). */
-const GROUND_TILE_CHUNK = 10;
+const GROUND_TILE_CHUNK = 5;
 
 const TILE_ASSETS = {
   ground: {
@@ -372,45 +372,45 @@ const TILE_ASSETS = {
     "tiles/folliage/tile_0098.png"
   ],
   lockers: [
-      "tiles/lockers/locker.png",
-      "tiles/lockers/tile_0070.png",
-  //   "tiles/lockers/tile_0058.png",
-  //   "tiles/lockers/tile_0059.png",
-  //   "tiles/lockers/tile_0060.png",
-  //   "tiles/lockers/tile_0067.png",
-  //   "tiles/lockers/tile_0068.png",
-  //   "tiles/lockers/tile_0069.png",
-  //   "tiles/lockers/tile_0070.png"
+    "tiles/lockers/locker.png",
+    "tiles/lockers/tile_0070.png",
+    //   "tiles/lockers/tile_0058.png",
+    //   "tiles/lockers/tile_0059.png",
+    //   "tiles/lockers/tile_0060.png",
+    //   "tiles/lockers/tile_0067.png",
+    //   "tiles/lockers/tile_0068.png",
+    //   "tiles/lockers/tile_0069.png",
+    //   "tiles/lockers/tile_0070.png"
   ],
   pillars: [
-      "tiles/pillars/tile_0046.png",
-      "tiles/pillars/tile_0047.png",
-      "tiles/pillars/tile_0048.png",
-      "tiles/pillars/tile_0049.png",
-      "tiles/pillars/tile_0050.png",
-      "tiles/pillars/tile_0056.png",
-      "tiles/pillars/tile_0057.png",
-      "tiles/pillars/tile_0066.png",
-      "tiles/pillars/tile_0076.png",
-      "tiles/pillars/tile_0077.png",
-      "tiles/pillars/tile_0085.png"
-    ],
-    traps: [
-      "tiles/traps/seg trap.png"
-    ],
-    lights: [
-      "tiles/lights/light 1.png",
-      "tiles/lights/light 2.png",
-      "tiles/lights/light 3.png",
-      "tiles/lights/light 4.png",
-      "tiles/lights/light 5.png",
-      "tiles/lights/light 6.png",
-      "tiles/lights/tile_0091.png",
-      "tiles/lights/tile_0092.png",
-      "tiles/lights/tile_0093.png",
-      "tiles/lights/tile_0094.png",
-      "tiles/lights/tile_0095.png"
-    ]
+    "tiles/pillars/tile_0046.png",
+    "tiles/pillars/tile_0047.png",
+    "tiles/pillars/tile_0048.png",
+    "tiles/pillars/tile_0049.png",
+    "tiles/pillars/tile_0050.png",
+    "tiles/pillars/tile_0056.png",
+    "tiles/pillars/tile_0057.png",
+    "tiles/pillars/tile_0066.png",
+    "tiles/pillars/tile_0076.png",
+    "tiles/pillars/tile_0077.png",
+    "tiles/pillars/tile_0085.png"
+  ],
+  traps: [
+    "tiles/traps/seg trap.png"
+  ],
+  lights: [
+    "tiles/lights/light 1.png",
+    "tiles/lights/light 2.png",
+    "tiles/lights/light 3.png",
+    "tiles/lights/light 4.png",
+    "tiles/lights/light 5.png",
+    "tiles/lights/light 6.png",
+    "tiles/lights/tile_0091.png",
+    "tiles/lights/tile_0092.png",
+    "tiles/lights/tile_0093.png",
+    "tiles/lights/tile_0094.png",
+    "tiles/lights/tile_0095.png"
+  ]
 };
 
 /* Preload all tile images into a cache */
