@@ -1158,7 +1158,13 @@ function playNoise(duration, options = {}) {
 
 function sanitizeRuns(raw) {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((item) => item && typeof item === "object");
+  return raw
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      ...item,
+      coalition: normalizeCoalitionName(item.coalition),
+      score: Number.isFinite(Number(item.score)) ? Math.max(0, Math.round(Number(item.score))) : 0
+    }));
 }
 
 function bindEvents() {
@@ -2851,10 +2857,8 @@ function renderProfile() {
           Number.isFinite(cursusLevel) ? ` (42 lvl ${escapeHtml(cursusLevel.toFixed(2))})` : ""
         }`
       : "";
-  const passed =
-    Array.isArray(app.profile.passedProjects) && app.profile.passedProjects.length > 0
-      ? ` · ${app.profile.passedProjects.length} passed`
-      : "";
+  const passedCount = getPassedProjectCount(app.profile);
+  const passed = passedCount > 0 ? ` · ${passedCount} passed` : "";
   const wallet = Number(app.profile.wallet) || 0;
   els.profileChip.innerHTML = `
     <div class="profile-avatar" style="color:${coalition.color};">${escapeHtml(initial)}</div>
@@ -3007,6 +3011,13 @@ function extractValidatedProjectSlugs(profile) {
   );
 }
 
+function getPassedProjectCount(profile) {
+  const raw = profile?.passedProjects;
+  if (Array.isArray(raw)) return raw.length;
+  const count = Number(raw);
+  return Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0;
+}
+
 function monsterProjectKeys(monster) {
   const project = normalizeId(monster?.project || "");
   const id = normalizeId(monster?.id || "");
@@ -3040,8 +3051,8 @@ function deriveMilestoneFromProfile(profile) {
   }
 
   if (highestPassed < 0) {
-    const passedCount = Number(profile.passedProjects);
-    if (Number.isFinite(passedCount) && passedCount > 0) {
+    const passedCount = getPassedProjectCount(profile);
+    if (passedCount > 0) {
       highestPassed = Math.max(0, Math.min(5, Math.floor(passedCount / 2) - 1));
     }
   }
@@ -4406,7 +4417,8 @@ function computeScores(runs) {
   for (const run of list) {
     if (!run || typeof run !== "object") continue;
     if (typeof run.coalition !== "string") continue;
-    scores[run.coalition] = (scores[run.coalition] || 0) + Number(run.score || 0);
+    const coalition = normalizeCoalitionName(run.coalition);
+    scores[coalition] = (scores[coalition] || 0) + Number(run.score || 0);
   }
   return scores;
 }

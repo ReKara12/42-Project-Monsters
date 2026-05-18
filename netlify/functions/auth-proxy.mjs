@@ -40,13 +40,53 @@ async function handleAuthExchange(code, redirectUri) {
     fetch42(access_token, "/v2/me/coalitions").catch(() => [])
   ]);
 
+  return shapeProfile(me, coalitions);
+}
+
+function pickMainCursus(cursusUsers) {
+  if (!Array.isArray(cursusUsers) || !cursusUsers.length) return null;
+  return cursusUsers.find((entry) => {
+    const name = String(entry?.cursus?.name || entry?.cursus_name || "").toLowerCase();
+    const slug = String(entry?.cursus?.slug || "").toLowerCase();
+    return name === "42" || slug === "42" || name.includes("42 curriculum");
+  }) || cursusUsers[cursusUsers.length - 1];
+}
+
+function projectBelongsToCursus(projectUser, cursusUser) {
+  if (!cursusUser || !projectUser) return true;
+  const cursusId = cursusUser.cursus?.id ?? cursusUser.cursus_id;
+  if (cursusId == null) return true;
+  if (Array.isArray(projectUser.cursus_ids)) {
+    return projectUser.cursus_ids.some((id) => Number(id) === Number(cursusId));
+  }
+  if (projectUser.cursus?.id != null) return Number(projectUser.cursus.id) === Number(cursusId);
+  return true;
+}
+
+function shapeProfile(me, coalitions) {
   const coalition = coalitions.length > 0 ? coalitions[coalitions.length - 1] : null;
+  const cursus = pickMainCursus(me.cursus_users);
+  const validated = Array.isArray(me.projects_users)
+    ? me.projects_users.filter((p) => p && p["validated?"] && projectBelongsToCursus(p, cursus))
+    : [];
+  const passedProjectSlugs = validated
+    .map((p) => p.project?.slug || p.project?.name || "")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  const cursusLevel = Number(cursus?.level);
+
   return {
     id: String(me.id),
     login: me.login,
     displayName: me.displayname || me.login,
     coalition: coalition?.name || "The Alliance",
-    avatarUrl: me.image?.versions?.medium || me.image?.link || ""
+    coalitionColor: coalition?.color || "",
+    avatarUrl: me.image?.versions?.medium || me.image?.link || "",
+    passedProjects: validated.length,
+    passedProjectSlugs,
+    passedProjectsSlugs: passedProjectSlugs,
+    passedProjectsList: passedProjectSlugs,
+    cursusLevel: Number.isFinite(cursusLevel) ? cursusLevel : null
   };
 }
 
