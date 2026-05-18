@@ -46,21 +46,11 @@ OAuth code exchange Netlify function içinde yapılır:
 - `netlify/functions/auth-proxy.mjs`
 - `netlify.toml` `/api/auth` isteğini bu function'a yönlendirir.
 
-Netlify environment variables:
-
-- `CLIENT_ID`
-- `CLIENT_SECRET`
-- `REDIRECT_URI`
-
-Secret dosyaları commitlenmez: `.env`, `env`, API key veya token dosyaları repo'ya eklenmez.
-
 ## Firebase
 
 Firebase RTDB URL `config.js` içinde public olarak durur:
-
-```text
-https://project-monsters-42-default-rtdb.europe-west1.firebasedatabase.app/
-```
+Kullanıcıların validate ettiği projeleri kaydedip onlara project monsters oalrak verir.
+Kullanıcılara id atayıp onların ilerleyişinin kayboluşunu engellemek için kaydeder.
 
 Kullanılan ana pathler:
 
