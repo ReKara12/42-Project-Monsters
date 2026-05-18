@@ -12,8 +12,7 @@
 //
 window.FRONT_CONFIG = {
   // Reşat verecek; boş = localStorage leaderboard.
-  firebaseDatabaseUrl: "https://console.firebase.google.com/u/0/project/project-monsters-42/database/project-monsters-42-default-rtdb/data/~2F",
-  // Sabit, değiştirme.
+  firebaseDatabaseUrl: "https://project-monsters-42-default-rtdb.firebaseio.com",
   authAuthorizeUrl: "https://api.intra.42.fr/oauth/authorize",
   // 42 intra UID (public). Reşat'ın 42 portalında oluşturduğu app.
   authClientId: "u-s4t2ud-6bb92eba95636403840615874055773eab093228c93d72921d03ec77511fed4a",
