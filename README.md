@@ -1,51 +1,110 @@
 # 42 Project Monsters
 
-Cat The Jam MVP: vanilla HTML/CSS/JS pixel-style coalition battle.
+42 Project Monsters, 42 öğrencisinin gerçek cursus ilerlemesini pixel-art PvE proje-canavarı oyununa çeviren web oyunudur. Oyuncu 42 Auth ile giriş yapar; tamamladığı projeler canavar havuzunu, aktif milestone'u ise harita/battle seviyesini belirler.
 
-## Loop (stable build)
+- Canlı demo: https://storied-fairy-cb64b7.netlify.app/
+- Repo: https://github.com/ReKara12/42-Project-Monsters
+- Stack: vanilla HTML/CSS/JS, HTML5 Canvas, Netlify Functions, Firebase Realtime Database
 
-`Start Local Battle` / **Local Jam Profile** → pick a **project monster** → tap **attack** moves → enemy **counter** → **win/loss** → **coalition leaderboard** updates (local `localStorage` unless Firebase is set in `config.js`).
+## Mevcut Build
 
-## Battle rules
+- 42 OAuth login ve Netlify `/api/auth` proxy.
+- Firebase RTDB leaderboard + localStorage fallback.
+- Pixel PvE battle: oyuncu proje canavarı seçer, AI düşmana karşı savaşır.
+- Map/village exploration ve encounter akışı.
+- Milestone hesaplama: tamamlanan en yüksek proje milestone'u + 1.
+- Coalition leaderboard: `runs` içindeki `coalition` skorları toplanır.
+- Leaderboard görselleri: `assets/kaleler/` içindeki dört kale asseti.
+- Enemy sprite manifest: `assets/enemies/manifest.json`.
 
-- Monster data lives in `content.js` (`MONSTER_DATA`). Each entry has `moves: [{ attack, damage }, ...]` (minimum one move; three recommended).
-- Player picks a move; enemy HP drops, then the enemy answers with a random move scaled into counter damage.
-- Score after a battle uses total damage, remaining HP, and a win bonus (see `calculateBattleScore` in `app.js`).
-
-## Quick test (no server)
-
-1. Open `index.html` in a modern browser (double-click, or “Open with Live Server” if you use it).
-2. Click **Start Local Battle** (uses the intra/coalition form; defaults apply if fields are empty).
-3. Choose **Local Jam Profile** if you changed intra/coalition.
-4. Select any monster card.
-5. Click attack buttons; watch HP bars, HUD pulse, and light screen shake on hits.
-6. End the fight (win, loss, or **Abort**); confirm **Coalition Board** updates for scored runs and the Recent Battles row appears.
-
-## Quick test (static server)
-
-Some browsers restrict `file://` storage; a tiny static server avoids that:
+## Lokal Çalıştırma
 
 ```bash
-npx --yes serve .
-# then open the printed URL (e.g. http://127.0.0.1:3000)
+npm install
+npm start
 ```
 
-## Firebase RTDB
+Sonra aç:
 
-Leave `firebaseDatabaseUrl` empty in `config.js` for offline/local leaderboard. For shared scores, set the URL and optional `FRONT_ADAPTERS.getBackendContext` for path/auth.
+```text
+http://127.0.0.1:3000/
+```
 
-`app.js` treats failed HTTP (`!response.ok`), JSON parse errors, and malformed run lists as empty or skippable rows so the **local demo path** (Local Jam Profile + battle) keeps working.
+Local demo için 42 Auth şart değil; local profile/battle akışı localStorage ile çalışır.
 
-## 42 Auth
+## Auth
 
-Public clients cannot exchange the OAuth `code` without a backend. Use `authProxyUrl` pointing at a small server that swaps the code for profile JSON (see brief). Until then, **Start Local Battle** + **Local Jam Profile** is the demo path.
+Client tarafında secret tutulmaz. Browser sadece public config okur:
 
-## Assets
+- `config.js`
+- `authClientId`
+- `authRedirectUri`
+- `authProxyUrl: "/api/auth"`
 
-- Logo: `assets/logo.svg` (referenced from the header in `index.html`).
+OAuth code exchange Netlify function içinde yapılır:
 
-## Team / AI coordination
+- `netlify/functions/auth-proxy.mjs`
+- `netlify.toml` `/api/auth` isteğini bu function'a yönlendirir.
 
-- **Code** lives in this repo only.
-- **Handoffs, briefs, and archive** — not in this folder. Use the desktop archive: `C:\Users\sahsenem\Desktop\cat-the-jam-arsiv-2026-05-17` (entry: `AI_KOORDINASYON.md`).
-- **Map generation** (`maps.js`, `dungeon_generator.js`) — Reşat; coordinate with Semih before changes.
+Netlify environment variables:
+
+- `CLIENT_ID`
+- `CLIENT_SECRET`
+- `REDIRECT_URI`
+
+Secret dosyaları commitlenmez: `.env`, `env`, API key veya token dosyaları repo'ya eklenmez.
+
+## Firebase
+
+Firebase RTDB URL `config.js` içinde public olarak durur:
+
+```text
+https://project-monsters-42-default-rtdb.europe-west1.firebasedatabase.app/
+```
+
+Kullanılan ana pathler:
+
+- `/runs`: battle sonuçları ve coalition skorları.
+- `/players/{id}`: oyuncu profil/economy/state kaydı.
+
+Firebase hata verirse oyun demo akışını bozmadan localStorage fallback'e döner.
+
+## Milestone Kuralı
+
+42 API'den gelen validated proje listesi kullanılır.
+
+- M0 projesi tamamlandıysa oyuncu M1 bölgesine girer.
+- M1 projeleri tamamlandıysa oyuncu M2 bölgesine girer.
+- Slug listesi yoksa fallback olarak passed project sayısı/cursus level kullanılır.
+
+İlgili veri alanları:
+
+- `passedProjectSlugs`
+- `passedProjects`
+- `passedProjectsList`
+- `cursusLevel`
+
+## Battle ve Skor
+
+Savaşlar PvE'dir. Rakip gerçek oyuncu değildir.
+
+- Oyuncu hasar verir.
+- AI düşman counter atar.
+- Skor; verilen hasar, kalan HP ve win bonusundan oluşur.
+- Abort sonucu skor yazmaz veya 0 kabul edilir.
+- `enemyCoalition` PvP rakibi değildir; sadece düşman tema/görsel etiketi olarak kullanılır.
+- Rakip coalition'dan puan düşmez.
+
+## Önemli Dosyalar
+
+- `index.html`: ekran iskeleti.
+- `styles.css`: UI, menu, battle, leaderboard stilleri.
+- `app.js`: ana oyun akışı, auth callback, battle, scoring, Firebase adapter.
+- `content.js`: monster/proje verileri.
+- `config.js`: browser-safe public config.
+- `maps.js`: map verisi.
+- `dungeon_generator.js`: dungeon/map generation.
+- `GDD.md`: güncel oyun tasarım dokümanı.
+- `assets/`: görseller.
+- `tiles/`: map tile assetleri.
+- `netlify/functions/auth-proxy.mjs`: 42 Auth backend proxy.
